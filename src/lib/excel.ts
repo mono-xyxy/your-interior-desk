@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import * as XLSX from 'xlsx';
+import Database from 'better-sqlite3';
 
+export const LOCAL_DB_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\client_designer.db";
 export const LOCAL_EXCEL_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\Client_Designer.xlsx";
 export const LOCAL_CSV_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\Client_Designer.csv";
 
@@ -21,6 +22,32 @@ export interface SubmissionData {
   wordCount: number;
 }
 
+// 1. Initialize SQLite Database
+function getDb() {
+  const dir = path.dirname(LOCAL_DB_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  const db = new Database(LOCAL_DB_PATH);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS submissions (
+      id TEXT PRIMARY KEY,
+      timestamp TEXT,
+      role TEXT,
+      fullName TEXT,
+      email TEXT,
+      phone TEXT,
+      location TEXT,
+      budget TEXT,
+      wordCount INTEGER,
+      description TEXT,
+      synced_to_excel INTEGER DEFAULT 0
+    )
+  `);
+  return db;
+}
+
 function ensureJsonStore() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -33,6 +60,29 @@ function ensureJsonStore() {
 export function getSubmissions(): SubmissionData[] {
   ensureJsonStore();
   try {
+    const db = getDb();
+    const rows = db.prepare(`SELECT * FROM submissions ORDER BY timestamp DESC`).all() as any[];
+    db.close();
+
+    if (rows && rows.length > 0) {
+      return rows.map(r => ({
+        id: r.id,
+        timestamp: r.timestamp,
+        role: r.role as 'designer' | 'client',
+        fullName: r.fullName,
+        email: r.email,
+        phone: r.phone,
+        location: r.location,
+        budget: r.budget,
+        description: r.description,
+        wordCount: r.wordCount
+      }));
+    }
+  } catch (err) {
+    console.warn('SQLite read fallback to JSON:', err);
+  }
+
+  try {
     const data = fs.readFileSync(JSON_FILE_PATH, 'utf8');
     return JSON.parse(data);
   } catch {
@@ -40,46 +90,50 @@ export function getSubmissions(): SubmissionData[] {
   }
 }
 
-// CONCURRENCY SAFE QUEUE
-let writeQueue: SubmissionData[] = [];
-let isProcessingQueue = false;
-
 export function saveSubmission(submission: SubmissionData): boolean {
+  // 1. Save into SQL Table (client_designer.db)
   try {
-    // 1. Atomically record submission in JSON
+    const db = getDb();
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO submissions 
+      (id, timestamp, role, fullName, email, phone, location, budget, wordCount, description, synced_to_excel)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    `);
+    stmt.run(
+      submission.id,
+      submission.timestamp,
+      submission.role,
+      submission.fullName,
+      submission.email,
+      submission.phone,
+      submission.location,
+      submission.budget,
+      submission.wordCount,
+      submission.description
+    );
+    db.close();
+    console.log(`[SQL Database] Recorded submission ${submission.id} into SQL Table (client_designer.db)`);
+  } catch (err) {
+    console.error('Error inserting into SQL Table:', err);
+  }
+
+  // 2. Also save to local JSON backup
+  try {
     ensureJsonStore();
     const current = getSubmissions();
-    current.unshift(submission);
-    fs.writeFileSync(JSON_FILE_PATH, JSON.stringify(current, null, 2));
-
-    // 2. Write to CSV immediately (CSV files never get locked by Windows/Excel)
-    appendToCsv(submission);
-
-    // 3. Queue for Excel update
-    writeQueue.push(submission);
-    processWriteQueue();
-
-    return true;
-  } catch (error) {
-    console.error('Error saving submission:', error);
-    return false;
-  }
-}
-
-async function processWriteQueue() {
-  if (isProcessingQueue || writeQueue.length === 0) return;
-  isProcessingQueue = true;
-
-  while (writeQueue.length > 0) {
-    writeQueue.shift();
-    try {
-      syncAllSubmissionsToExcel();
-    } catch (err) {
-      console.warn('Excel queue update deferred:', err);
+    const exists = current.some(s => s.id === submission.id);
+    if (!exists) {
+      current.unshift(submission);
+      fs.writeFileSync(JSON_FILE_PATH, JSON.stringify(current, null, 2));
     }
+  } catch (err) {
+    console.error('Error recording to JSON store:', err);
   }
 
-  isProcessingQueue = false;
+  // 3. Immediately write to CSV
+  appendToCsv(submission);
+
+  return true;
 }
 
 export function appendToCsv(sub: SubmissionData) {
@@ -93,7 +147,6 @@ export function appendToCsv(sub: SubmissionData) {
     const fileExists = fs.existsSync(csvPath);
     const headers = 'ID,Timestamp,Role,Full Name,Email Address,Phone,Location,Budget (INR),Word Count,Description\n';
     
-    // Clean text fields for CSV safety
     const cleanStr = (s: string) => `"${(s || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
     
     const row = [
@@ -115,102 +168,6 @@ export function appendToCsv(sub: SubmissionData) {
       fs.appendFileSync(csvPath, row, 'utf8');
     }
   } catch (err) {
-    console.warn('CSV append warning:', err);
-  }
-}
-
-export function autoFitColumns(ws: XLSX.WorkSheet, data: any[]) {
-  if (!data || data.length === 0) return;
-  const colNames = Object.keys(data[0]);
-  const colWidths = colNames.map(col => {
-    let maxLen = col.length;
-    data.forEach(row => {
-      const val = row[col] !== undefined && row[col] !== null ? String(row[col]) : '';
-      if (val.length > maxLen) {
-        maxLen = val.length;
-      }
-    });
-    return { wch: Math.min(Math.max(maxLen + 4, 16), 65) };
-  });
-  ws['!cols'] = colWidths;
-}
-
-export function syncAllSubmissionsToExcel() {
-  const primaryPath = LOCAL_EXCEL_PATH;
-  const dir = path.dirname(primaryPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  const allSubmissions = getSubmissions();
-  if (allSubmissions.length === 0) return;
-
-  let wb: XLSX.WorkBook = XLSX.utils.book_new();
-
-  // 1. Designers Sheet
-  const designers = allSubmissions.filter(s => s.role === 'designer');
-  const designerRows = designers.map(sub => ({
-    'Submission ID': sub.id,
-    'Timestamp': sub.timestamp,
-    'Full Name': sub.fullName,
-    'Email Address': sub.email,
-    'Phone / WhatsApp': sub.phone,
-    'Working Location in India': sub.location,
-    'Working Budget Fee (₹)': sub.budget,
-    'Word Count': sub.wordCount,
-    'Professional Overview & Experience': sub.description
-  }));
-
-  const wsDesigners = XLSX.utils.json_to_sheet(designerRows.length > 0 ? designerRows : [
-    { 'Submission ID': '', 'Timestamp': '', 'Full Name': '', 'Email Address': '', 'Phone / WhatsApp': '', 'Working Location in India': '', 'Working Budget Fee (₹)': '', 'Word Count': '', 'Professional Overview & Experience': '' }
-  ]);
-  if (designerRows.length > 0) autoFitColumns(wsDesigners, designerRows);
-  XLSX.utils.book_append_sheet(wb, wsDesigners, 'Designers');
-
-  // 2. Clients Sheet
-  const clients = allSubmissions.filter(s => s.role === 'client');
-  const clientRows = clients.map(sub => ({
-    'Submission ID': sub.id,
-    'Timestamp': sub.timestamp,
-    'Full Name': sub.fullName,
-    'Email Address': sub.email,
-    'Phone / WhatsApp': sub.phone,
-    'Property Location in India': sub.location,
-    'Offered Budget (₹)': sub.budget,
-    'Word Count': sub.wordCount,
-    'Detailed Scope of Work & Requirements': sub.description
-  }));
-
-  const wsClients = XLSX.utils.json_to_sheet(clientRows.length > 0 ? clientRows : [
-    { 'Submission ID': '', 'Timestamp': '', 'Full Name': '', 'Email Address': '', 'Phone / WhatsApp': '', 'Property Location in India': '', 'Offered Budget (₹)': '', 'Word Count': '', 'Detailed Scope of Work & Requirements': '' }
-  ]);
-  if (clientRows.length > 0) autoFitColumns(wsClients, clientRows);
-  XLSX.utils.book_append_sheet(wb, wsClients, 'Clients');
-
-  // 3. Master Log Sheet
-  const masterRows = allSubmissions.map(sub => ({
-    'ID': sub.id,
-    'Timestamp': sub.timestamp,
-    'Role': sub.role.toUpperCase(),
-    'Name': sub.fullName,
-    'Email': sub.email,
-    'Phone': sub.phone,
-    'Location': sub.location,
-    'Budget (₹)': sub.budget,
-    'Word Count': sub.wordCount,
-    'Description': sub.description
-  }));
-
-  const wsMaster = XLSX.utils.json_to_sheet(masterRows);
-  autoFitColumns(wsMaster, masterRows);
-  XLSX.utils.book_append_sheet(wb, wsMaster, 'All_Submissions');
-
-  // Attempt writing to main file
-  try {
-    XLSX.writeFile(wb, primaryPath);
-  } catch (err) {
-    // Backup Excel if MS Excel holds a lock
-    const fallbackPath = path.join(dir, "Client_Designer_Backup.xlsx");
-    XLSX.writeFile(wb, fallbackPath);
+    console.warn('CSV write warning:', err);
   }
 }
