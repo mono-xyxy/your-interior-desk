@@ -5,24 +5,21 @@ import * as XLSX from 'xlsx';
 export async function GET() {
   try {
     const submissions = getSubmissions();
-    
     const wb = XLSX.utils.book_new();
 
     // Designers Sheet
     const designersData = submissions
       .filter(s => s.role === 'designer')
       .map(s => ({
-        'ID': s.id,
+        'Submission ID': s.id,
         'Timestamp': s.timestamp,
         'Full Name': s.fullName,
-        'Email': s.email,
+        'Email Address': s.email,
         'Phone / WhatsApp': s.phone,
-        'City / Location in India': s.location,
-        'Min Working Budget (₹)': s.budget,
-        'Experience Level': s.experience || '',
-        'Specializations': s.specializations || '',
-        'Portfolio / Instagram Link': s.portfolioLink || '',
-        'Additional Notes': s.additionalNotes || ''
+        'Working Location in India': s.location,
+        'Working Budget Fee (₹)': s.budget,
+        'Word Count': s.wordCount || 0,
+        'Professional Description & Portfolio': s.description
       }));
 
     const wsDesigners = XLSX.utils.json_to_sheet(designersData);
@@ -32,17 +29,15 @@ export async function GET() {
     const clientsData = submissions
       .filter(s => s.role === 'client')
       .map(s => ({
-        'ID': s.id,
+        'Submission ID': s.id,
         'Timestamp': s.timestamp,
         'Full Name': s.fullName,
-        'Email': s.email,
+        'Email Address': s.email,
         'Phone / WhatsApp': s.phone,
         'Property Location in India': s.location,
         'Offered Budget (₹)': s.budget,
-        'Property Type': s.propertyType || '',
-        'Scope of Work': s.scopeOfWork || '',
-        'Preferred Design Style': s.preferredStyle || '',
-        'Desired Timeline': s.timeline || ''
+        'Word Count': s.wordCount || 0,
+        'Detailed Scope of Work & Requirements': s.description
       }));
 
     const wsClients = XLSX.utils.json_to_sheet(clientsData);
@@ -52,15 +47,14 @@ export async function GET() {
     const masterData = submissions.map(s => ({
       'ID': s.id,
       'Timestamp': s.timestamp,
-      'Role Type': s.role.toUpperCase(),
+      'Role': s.role.toUpperCase(),
       'Name': s.fullName,
       'Email': s.email,
       'Phone': s.phone,
       'Location': s.location,
       'Budget (₹)': s.budget,
-      'Details Summary': s.role === 'designer' 
-        ? `${s.experience || ''} | ${s.specializations || ''}`
-        : `${s.propertyType || ''} | ${s.scopeOfWork || ''} | ${s.preferredStyle || ''}`
+      'Word Count': s.wordCount || 0,
+      'Description': s.description
     }));
 
     const wsMaster = XLSX.utils.json_to_sheet(masterData);

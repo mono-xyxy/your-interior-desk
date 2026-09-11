@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Palette, Send, CheckCircle2, AlertCircle, Loader2, Sparkles, MapPin, IndianRupee, Briefcase, Link2 } from 'lucide-react';
+import { Send, CheckCircle2, AlertCircle, Loader2, FileText, Check } from 'lucide-react';
 
 interface DesignerFormProps {
   onSuccess: () => void;
@@ -12,26 +12,37 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
     fullName: '',
     email: '',
     phone: '',
-    location: 'Bangalore',
-    budget: '₹5,00,000 - ₹10,00,000',
-    experience: '3 - 5 Years (Established)',
-    specializations: 'Residential & Luxury Villas',
-    portfolioLink: '',
-    additionalNotes: '',
+    location: '',
+    budget: '',
+    description: '',
   });
 
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const countWords = (str: string) => {
+    if (!str.trim()) return 0;
+    return str.trim().split(/\s+/).filter(w => w.length > 0).length;
+  };
+
+  const currentWordCount = countWords(formData.description);
+  const isWordCountValid = currentWordCount >= 80;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMsg('');
+
+    if (!isWordCountValid) {
+      setErrorMsg(`Please provide at least 80 words describing your design experience (${currentWordCount}/80 words).`);
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const res = await fetch('/api/submit', {
@@ -47,250 +58,199 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
 
       if (data.success) {
         setSubmitted(true);
-        // Automatically clear form data from frontend state so next user/submission is clean
+        // Automatically reset form for next designer
         setFormData({
           fullName: '',
           email: '',
           phone: '',
-          location: 'Bangalore',
-          budget: '₹5,00,000 - ₹10,00,000',
-          experience: '3 - 5 Years (Established)',
-          specializations: 'Residential & Luxury Villas',
-          portfolioLink: '',
-          additionalNotes: '',
+          location: '',
+          budget: '',
+          description: '',
         });
         onSuccess();
-        setTimeout(() => setSubmitted(false), 5000);
+        setTimeout(() => setSubmitted(false), 7000);
       } else {
-        setErrorMsg(data.error || 'Failed to submit designer details.');
+        setErrorMsg(data.error || 'Unable to complete registration. Please try again.');
       }
     } catch (err) {
-      setErrorMsg('Network error. Please check connection and try again.');
+      setErrorMsg('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-6 md:p-8 relative overflow-hidden">
-      {/* Decorative top border glow */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-70" />
+    <div className="glass-panel rounded-2xl p-6 sm:p-10 relative overflow-hidden shadow-2xl">
+      {/* Top accent line */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
 
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#D4AF37]/20">
-        <div className="w-10 h-10 rounded-lg bg-[#162338] border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
-          <Palette className="w-5 h-5" />
-        </div>
-        <div>
-          <h2 className="font-serif-luxury text-2xl font-bold text-[#F8F6F0] tracking-wide">
-            Interior Designer Partner Registration
-          </h2>
-          <p className="text-xs text-[#8E9EAF]">
-            Register your profile & budget preferences to connect with active clients across India
-          </p>
-        </div>
+      {/* Form Title */}
+      <div className="mb-8 pb-4 border-b border-[#D4AF37]/20">
+        <h2 className="font-serif-luxury text-2xl sm:text-3xl font-bold text-[#F8F6F0]">
+          Designer Registration
+        </h2>
+        <p className="text-xs sm:text-sm text-[#8E9EAF] mt-1">
+          Share your experience, location, and preferred project fees to connect with clients seeking interior design services across India.
+        </p>
       </div>
 
       {submitted && (
-        <div className="mb-6 p-4 rounded-xl bg-[#0D2818] border border-[#2D6A4F] text-[#D8F3DC] flex items-start gap-3 animate-fade-in">
+        <div className="mb-8 p-5 rounded-xl bg-[#0D2818] border border-[#2D6A4F] text-[#D8F3DC] flex items-start gap-3.5 animate-fade-in">
           <CheckCircle2 className="w-5 h-5 text-[#52B788] flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-semibold text-sm text-[#74C69D]">Details Saved to Database & Excel!</h4>
+            <h4 className="font-semibold text-sm text-[#74C69D]">Thank You! Profile Registered Successfully</h4>
             <p className="text-xs text-[#B7E4C7] mt-1">
-              Your details have been saved directly to <code className="bg-[#1B4332] px-1.5 py-0.5 rounded text-[11px]">Client_Designer.xlsx</code>. Form has been cleared for the next submission.
+              Your details have been received. Our community network will connect with you when matching client inquiries arrive.
             </p>
           </div>
         </div>
       )}
 
       {errorMsg && (
-        <div className="mb-6 p-4 rounded-xl bg-[#2C0B0E] border border-[#780016] text-[#FFCCD5] flex items-center gap-3">
+        <div className="mb-8 p-4 rounded-xl bg-[#2C0B0E] border border-[#780016] text-[#FFCCD5] flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-[#FF4D6D] flex-shrink-0" />
-          <span className="text-xs">{errorMsg}</span>
+          <span className="text-xs sm:text-sm">{errorMsg}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Full Name */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059] mb-1.5">
-              Full Name <span className="text-[#FF4D6D]">*</span>
-            </label>
-            <input
-              type="text"
-              name="fullName"
-              required
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="e.g. Ananya Sharma"
-              className="w-full px-4 py-2.5 rounded-lg luxury-input text-sm"
-            />
-          </div>
-
-          {/* Contact Email */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059] mb-1.5">
-              Email Address <span className="text-[#FF4D6D]">*</span>
-            </label>
-            <input
-              type="email"
-              name="email"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="e.g. ananya@designstudio.in"
-              className="w-full px-4 py-2.5 rounded-lg luxury-input text-sm"
-            />
-          </div>
-
-          {/* Phone / WhatsApp */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059] mb-1.5">
-              Phone / WhatsApp Number <span className="text-[#FF4D6D]">*</span>
-            </label>
-            <input
-              type="tel"
-              name="phone"
-              required
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="e.g. +91 98765 43210"
-              className="w-full px-4 py-2.5 rounded-lg luxury-input text-sm"
-            />
-          </div>
-
-          {/* Working Location in India */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059] mb-1.5">
-              Primary City / Base in India <span className="text-[#FF4D6D]">*</span>
-            </label>
-            <select
-              name="location"
-              required
-              value={formData.location}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-lg luxury-input text-sm bg-[#080F1B]"
-            >
-              <option value="Bangalore">Bangalore</option>
-              <option value="Mumbai">Mumbai</option>
-              <option value="Delhi NCR">Delhi NCR</option>
-              <option value="Hyderabad">Hyderabad</option>
-              <option value="Pune">Pune</option>
-              <option value="Chennai">Chennai</option>
-              <option value="Kolkata">Kolkata</option>
-              <option value="Ahmedabad">Ahmedabad</option>
-              <option value="Goa">Goa</option>
-              <option value="All India / Pan India">All India / Pan India</option>
-            </select>
-          </div>
-
-          {/* Working Budget Range for Clients */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059] mb-1.5">
-              Min. Client Budget You Work With (₹) <span className="text-[#FF4D6D]">*</span>
-            </label>
-            <select
-              name="budget"
-              required
-              value={formData.budget}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-lg luxury-input text-sm bg-[#080F1B]"
-            >
-              <option value="₹2,00,000 - ₹5,00,000">₹2 Lakhs - ₹5 Lakhs (Standard)</option>
-              <option value="₹5,00,000 - ₹10,00,000">₹5 Lakhs - ₹10 Lakhs (Premium)</option>
-              <option value="₹10,00,000 - ₹25,00,000">₹10 Lakhs - ₹25 Lakhs (Luxury)</option>
-              <option value="₹25,00,000 - ₹50,00,000">₹25 Lakhs - ₹50 Lakhs (High-End)</option>
-              <option value="₹50,00,000+">₹50 Lakhs+ (Ultra Luxury / Estate)</option>
-            </select>
-          </div>
-
-          {/* Experience Level */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059] mb-1.5">
-              Experience Level
-            </label>
-            <select
-              name="experience"
-              value={formData.experience}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-lg luxury-input text-sm bg-[#080F1B]"
-            >
-              <option value="1 - 3 Years (Emerging)">1 - 3 Years (Emerging Designer)</option>
-              <option value="3 - 5 Years (Established)">3 - 5 Years (Established Studio)</option>
-              <option value="5 - 10 Years (Senior)">5 - 10 Years (Senior Architect)</option>
-              <option value="10+ Years (Master)">10+ Years (Master Designer)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Specialization */}
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059] mb-1.5">
-            Design Specializations
+      {/* Vertical Alignment (Row-by-Row Layout) */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Row 1: Full Name */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+            Full Name <span className="text-[#FF4D6D]">*</span>
           </label>
-          <select
-            name="specializations"
-            value={formData.specializations}
+          <input
+            type="text"
+            name="fullName"
+            required
+            value={formData.fullName}
             onChange={handleChange}
-            className="w-full px-4 py-2.5 rounded-lg luxury-input text-sm bg-[#080F1B]"
-          >
-            <option value="Residential & Luxury Villas">Residential Apartments & Luxury Villas</option>
-            <option value="Commercial & Office Spaces">Commercial, Boutique Offices & Retail</option>
-            <option value="Modular Kitchens & Furniture">Modular Kitchens & Custom Wardrobes</option>
-            <option value="Turnkey End-to-End Execution">Complete Turnkey Design & Execution</option>
-            <option value="Sustainable & Biophilic Design">Sustainable & Modern Minimalist</option>
-          </select>
-        </div>
-
-        {/* Portfolio Link */}
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059] mb-1.5">
-            Portfolio Website / Instagram URL
-          </label>
-          <div className="relative">
-            <Link2 className="w-4 h-4 text-[#8E9EAF] absolute left-3.5 top-3" />
-            <input
-              type="url"
-              name="portfolioLink"
-              value={formData.portfolioLink}
-              onChange={handleChange}
-              placeholder="https://instagram.com/your_design_studio"
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg luxury-input text-sm"
-            />
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059] mb-1.5">
-            Design Philosophy / Client Notes
-          </label>
-          <textarea
-            name="additionalNotes"
-            rows={2}
-            value={formData.additionalNotes}
-            onChange={handleChange}
-            placeholder="Briefly describe your design style or specific project types you prefer..."
-            className="w-full px-4 py-2.5 rounded-lg luxury-input text-sm resize-none"
+            placeholder="Enter your complete full name (e.g. Veda R)"
+            className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
 
-        {/* Submit Button */}
+        {/* Row 2: Email Address */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+            Email Address <span className="text-[#FF4D6D]">*</span>
+          </label>
+          <input
+            type="email"
+            name="email"
+            required
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="Enter your email address (e.g. veda@designstudio.in)"
+            className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
+          />
+        </div>
+
+        {/* Row 3: Phone / WhatsApp Number */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+            Phone / WhatsApp Number <span className="text-[#FF4D6D]">*</span>
+          </label>
+          <input
+            type="tel"
+            name="phone"
+            required
+            value={formData.phone}
+            onChange={handleChange}
+            placeholder="Enter your contact phone number (e.g. +91 90353 33300)"
+            className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
+          />
+        </div>
+
+        {/* Row 4: Primary Working Location in India */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+            Primary Working Location & Cities in India <span className="text-[#FF4D6D]">*</span>
+          </label>
+          <input
+            type="text"
+            name="location"
+            required
+            value={formData.location}
+            onChange={handleChange}
+            placeholder="Enter your base city and operational regions (e.g. Bangalore, Mumbai, Delhi NCR)"
+            className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
+          />
+        </div>
+
+        {/* Row 5: Expected Working Budget & Fee Range */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+            Expected Working Budget & Project Fee Range (₹) <span className="text-[#FF4D6D]">*</span>
+          </label>
+          <input
+            type="text"
+            name="budget"
+            required
+            value={formData.budget}
+            onChange={handleChange}
+            placeholder="Enter your typical project budget (e.g. ₹5 Lakhs - ₹15 Lakhs for 3BHK turnkey interior)"
+            className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
+          />
+        </div>
+
+        {/* Row 6: Detailed Professional Overview */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+              Professional Experience & Portfolio Description <span className="text-[#FF4D6D]">*</span>
+            </label>
+
+            {/* Word Counter Badge */}
+            <span
+              className={`text-xs px-2.5 py-1 rounded-full font-mono font-semibold flex items-center gap-1.5 transition-colors ${
+                isWordCountValid
+                  ? 'bg-[#0D2818] text-[#52B788] border border-[#2D6A4F]'
+                  : 'bg-[#2A170F] text-[#F97316] border border-[#EA580C]/40'
+              }`}
+            >
+              {isWordCountValid ? <Check className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+              <span>{currentWordCount} / 80 words minimum</span>
+            </span>
+          </div>
+
+          <textarea
+            name="description"
+            required
+            rows={7}
+            value={formData.description}
+            onChange={handleChange}
+            placeholder="Describe your design background in detail (minimum 80 words). Include your total years of experience, design specializations (residential, commercial, luxury villas), past notable projects, portfolio website / Instagram links, preferred materials, and client working terms..."
+            className="w-full px-4 py-3.5 rounded-xl luxury-input text-sm resize-y leading-relaxed font-normal"
+          />
+
+          {!isWordCountValid && (
+            <p className="text-[11px] text-[#F97316] flex items-center gap-1.5 mt-1 font-medium">
+              <span>Please write at least 80 words ({80 - currentWordCount} more words needed).</span>
+            </p>
+          )}
+        </div>
+
+        {/* Submit Button with Warm Non-Technical Language */}
         <button
           type="submit"
-          disabled={loading}
-          className="w-full py-3.5 px-6 rounded-lg btn-gold flex items-center justify-center gap-3 text-sm tracking-wider uppercase"
+          disabled={loading || !isWordCountValid}
+          className={`w-full py-4 px-6 rounded-xl font-semibold text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-3 ${
+            isWordCountValid && !loading
+              ? 'btn-gold shadow-lg shadow-[#D4AF37]/25 hover:scale-[1.01]'
+              : 'bg-[#1C2838] text-[#8E9EAF] cursor-not-allowed border border-[#8E9EAF]/20'
+          }`}
         >
           {loading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin text-[#070D18]" />
-              <span>Recording to Spreadsheet...</span>
+              <span>Sending Profile Details...</span>
             </>
           ) : (
             <>
-              <Send className="w-4 h-4 text-[#070D18]" />
-              <span>Submit Designer Profile to Database</span>
+              <Send className="w-4 h-4" />
+              <span>Register Designer Profile</span>
             </>
           )}
         </button>

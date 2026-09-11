@@ -1,18 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveSubmission, SubmissionData } from '@/lib/excel';
 
+function countWords(str: string): number {
+  if (!str) return 0;
+  return str.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const requiredFields = ['fullName', 'email', 'phone', 'location', 'budget', 'role'];
+    // Required basic fields
+    const requiredFields = ['fullName', 'email', 'phone', 'location', 'budget', 'description', 'role'];
     for (const field of requiredFields) {
       if (!body[field] || body[field].toString().trim() === '') {
         return NextResponse.json(
-          { success: false, error: `Missing required field: ${field}` },
+          { success: false, error: `Please fill out all required fields (${field}).` },
           { status: 400 }
         );
       }
+    }
+
+    const descriptionText = body.description.trim();
+    const wordCount = countWords(descriptionText);
+
+    // Minimum 80 words constraint validation
+    if (wordCount < 80) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Description must contain at least 80 words. Current count: ${wordCount} words.` 
+        },
+        { status: 400 }
+      );
     }
 
     const newSubmission: SubmissionData = {
@@ -24,34 +44,21 @@ export async function POST(req: NextRequest) {
       phone: body.phone.trim(),
       location: body.location.trim(),
       budget: body.budget.trim(),
-      experience: body.experience || '',
-      specializations: body.specializations || '',
-      portfolioLink: body.portfolioLink || '',
-      additionalNotes: body.additionalNotes || '',
-      propertyType: body.propertyType || '',
-      scopeOfWork: body.scopeOfWork || '',
-      preferredStyle: body.preferredStyle || '',
-      timeline: body.timeline || '',
+      description: descriptionText,
+      wordCount: wordCount,
     };
 
-    const saved = saveSubmission(newSubmission);
+    saveSubmission(newSubmission);
 
-    if (saved) {
-      return NextResponse.json({
-        success: true,
-        message: 'Submission recorded and Excel updated successfully!',
-        data: newSubmission,
-      });
-    } else {
-      return NextResponse.json(
-        { success: false, error: 'Failed to record submission' },
-        { status: 500 }
-      );
-    }
-  } catch (error) {
+    return NextResponse.json({
+      success: true,
+      message: 'Submission recorded successfully! Spreadsheet updated.',
+      data: newSubmission,
+    });
+  } catch (error: any) {
     console.error('Submit API error:', error);
     return NextResponse.json(
-      { success: false, error: 'Server error processing submission' },
+      { success: false, error: 'Error processing submission: ' + (error?.message || 'Server error') },
       { status: 500 }
     );
   }

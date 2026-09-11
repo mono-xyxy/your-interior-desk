@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Download, Database, FileSpreadsheet, RefreshCw, CheckCircle2, User, Palette, ExternalLink } from 'lucide-react';
+import { X, Download, Database, FileSpreadsheet, RefreshCw, User, Palette } from 'lucide-react';
 import { SubmissionData } from '@/lib/excel';
 
 interface AdminModalProps {
@@ -50,7 +50,7 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
             </div>
             <div>
               <h3 className="font-serif-luxury text-xl font-bold text-[#F8F6F0]">
-                Client & Designer Database Management
+                Client & Designer Database Intake
               </h3>
               <p className="text-xs text-[#8E9EAF]">
                 Local Excel Path: <code className="text-[#D4AF37] font-mono">C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\Client_Designer.xlsx</code>
@@ -58,29 +58,16 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Download Excel Button */}
-            <a
-              href="/api/export-excel"
-              download="Client_Designer.xlsx"
-              className="px-4 py-2 rounded-lg btn-gold flex items-center gap-2 text-xs font-semibold uppercase tracking-wider"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download .XLSX</span>
-            </a>
-
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-lg bg-[#162338] text-[#8E9EAF] hover:text-white flex items-center justify-center transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg bg-[#162338] text-[#8E9EAF] hover:text-white flex items-center justify-center transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Modal Toolbar & Stats */}
         <div className="p-4 bg-[#0E1726] border-b border-[#D4AF37]/10 flex flex-wrap items-center justify-between gap-4">
-          {/* Tabs */}
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('all')}
@@ -114,7 +101,7 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
             className="flex items-center gap-1.5 text-xs text-[#C5A059] hover:text-[#D4AF37] transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Submissions</span>
+            <span>Refresh</span>
           </button>
         </div>
 
@@ -124,9 +111,6 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
             <div className="text-center py-12 text-[#8E9EAF] space-y-3">
               <Database className="w-12 h-12 text-[#D4AF37]/30 mx-auto" />
               <p className="text-sm">No submissions recorded yet.</p>
-              <p className="text-xs text-[#8E9EAF]/70 max-w-sm mx-auto">
-                Fill the frontend form to test real-time recording into your spreadsheet.
-              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -136,10 +120,11 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
                     <th className="p-3">ID</th>
                     <th className="p-3">Role</th>
                     <th className="p-3">Name</th>
-                    <th className="p-3">Email & Phone</th>
+                    <th className="p-3">Contact</th>
                     <th className="p-3">Location</th>
                     <th className="p-3">Budget (₹)</th>
-                    <th className="p-3">Key Details</th>
+                    <th className="p-3">Words</th>
+                    <th className="p-3">Description</th>
                     <th className="p-3">Timestamp</th>
                   </tr>
                 </thead>
@@ -166,11 +151,8 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
                       </td>
                       <td className="p-3 text-[#CBD5E1]">{item.location}</td>
                       <td className="p-3 text-[#D4AF37] font-semibold">{item.budget}</td>
-                      <td className="p-3 text-[#CBD5E1] max-w-xs truncate">
-                        {item.role === 'designer'
-                          ? `${item.experience || ''} • ${item.specializations || ''}`
-                          : `${item.propertyType || ''} • ${item.scopeOfWork || ''}`}
-                      </td>
+                      <td className="p-3 font-mono text-[#52B788]">{item.wordCount || 0}</td>
+                      <td className="p-3 text-[#CBD5E1] max-w-xs truncate">{item.description}</td>
                       <td className="p-3 text-[11px] text-[#8E9EAF] whitespace-nowrap">{item.timestamp}</td>
                     </tr>
                   ))}
