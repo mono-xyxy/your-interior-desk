@@ -56,9 +56,9 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
     if (!isWordCountValid) {
       newErrors.description = true;
       hasError = true;
-      setErrorMsg(`Minimum 80 words constraint required. You currently have ${currentWordCount} words (${80 - currentWordCount} more words needed).`);
+      setErrorMsg(`Please provide at least 80 words describing your project scope. (${currentWordCount} words entered)`);
     } else if (hasError) {
-      setErrorMsg('Please complete all highlighted required fields before submitting your project request.');
+      setErrorMsg('Please complete all required fields before submitting your project request.');
     }
 
     if (hasError) {
@@ -143,7 +143,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Row 1: Client Full Name */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Client Full Name <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -160,7 +160,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
 
         {/* Row 2: Email Address */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Email Address <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -177,7 +177,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
 
         {/* Row 3: Phone / WhatsApp Number */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Phone / WhatsApp Number <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -194,7 +194,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
 
         {/* Row 4: Property Location in India */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Property Location (City / Area in India) <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -211,7 +211,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
 
         {/* Row 5: Offered Budget for Interior Design */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Offered Budget for Interior Design (₹) <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -226,23 +226,23 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
           />
         </div>
 
-        {/* Row 6: Detailed Scope & Property Requirements (WITH 80 WORDS MINIMUM CONSTRAINT) */}
+        {/* Row 6: Detailed Scope & Property Requirements (Stable height, no shifting) */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
-              Detailed Scope of Work & Property Description <span className="text-[#EF4444]">* (80 Words Minimum)</span>
+          <div className="flex items-center justify-between flex-wrap gap-2 min-h-[28px]">
+            <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
+              Detailed Scope of Work & Property Description <span className="text-[#EF4444]">*</span>
             </label>
 
-            {/* Live Word Count Counter Badge */}
+            {/* Stable Word Counter Badge */}
             <span
-              className={`text-xs px-2.5 py-1 rounded-full font-mono font-semibold flex items-center gap-1.5 transition-colors ${
+              className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-medium flex items-center gap-1.5 transition-colors ${
                 isWordCountValid
                   ? 'bg-[#0D2818] text-[#52B788] border border-[#2D6A4F]'
-                  : 'bg-[#2A170F] text-[#F97316] border border-[#EA580C]/40'
+                  : 'bg-[#1E293B] text-[#94A3B8] border border-[#334155]'
               }`}
             >
-              {isWordCountValid ? <Check className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-              <span>{currentWordCount} / 80 words min</span>
+              {isWordCountValid ? <Check className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5 text-[#94A3B8]" />}
+              <span>{currentWordCount} / 80 words</span>
             </span>
           </div>
 
@@ -256,28 +256,22 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
               touchedErrors.description ? 'luxury-input-error' : ''
             }`}
           />
-
-          {!isWordCountValid && (
-            <p className="text-[11px] text-[#F97316] flex items-center gap-1.5 mt-1 font-medium">
-              <span>⚠ Minimum 80 words constraint required ({80 - currentWordCount} more words needed).</span>
-            </p>
-          )}
         </div>
 
         {/* Submit Button */}
         <button
           type="submit"
           disabled={loading || !isWordCountValid}
-          className={`w-full py-4 px-6 rounded-xl font-semibold text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-3 ${
+          className={`w-full py-4 px-6 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 flex items-center justify-center gap-3 ${
             isWordCountValid && !loading
-              ? 'btn-silver shadow-lg shadow-[#E2E8F0]/20 hover:scale-[1.01]'
+              ? 'btn-silver shadow-lg shadow-[#E2E8F0]/10 hover:scale-[1.005]'
               : 'bg-[#1C2838] text-[#94A3B8] cursor-not-allowed border border-[#94A3B8]/20'
           }`}
         >
           {loading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin text-[#0B1320]" />
-              <span>Sending Your Request...</span>
+              <span>Sending Request...</span>
             </>
           ) : (
             <>
@@ -290,4 +284,5 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
     </div>
   );
 }
+
 

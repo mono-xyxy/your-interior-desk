@@ -57,9 +57,9 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
     if (!isWordCountValid) {
       newErrors.description = true;
       hasError = true;
-      setErrorMsg(`Minimum 80 words constraint required. You currently have ${currentWordCount} words (${80 - currentWordCount} more words needed).`);
+      setErrorMsg(`Please provide at least 80 words describing your design overview. (${currentWordCount} words entered)`);
     } else if (hasError) {
-      setErrorMsg('Please fill out all highlighted required fields before submitting.');
+      setErrorMsg('Please complete all required fields before submitting.');
     }
 
     if (hasError) {
@@ -145,7 +145,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Row 1: Full Name */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Full Name <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -162,7 +162,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
 
         {/* Row 2: Email Address */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Email Address <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -179,7 +179,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
 
         {/* Row 3: Phone / WhatsApp Number */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Phone / WhatsApp Number <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -196,7 +196,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
 
         {/* Row 4: Primary Working Location in India */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Primary Working Location & Cities in India <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -213,7 +213,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
 
         {/* Row 5: Expected Working Budget & Fee Range */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Expected Working Budget & Project Fee Range (₹) <span className="text-[#EF4444]">*</span>
           </label>
           <input
@@ -230,7 +230,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
 
         {/* Row 6: Social Handles / Portfolio Links */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
             Social Handles & Portfolio Links <span className="text-[#94A3B8] font-normal">(Instagram, LinkedIn, Website)</span>
           </label>
           <input
@@ -243,23 +243,23 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
           />
         </div>
 
-        {/* Row 7: Detailed Overview (WITH 80 WORDS MINIMUM CONSTRAINT) */}
+        {/* Row 7: Professional Overview (Stable height, no shifting) */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
-              Professional Overview & Experience <span className="text-[#EF4444]">* (80 Words Minimum)</span>
+          <div className="flex items-center justify-between flex-wrap gap-2 min-h-[28px]">
+            <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
+              Professional Overview & Experience <span className="text-[#EF4444]">*</span>
             </label>
 
-            {/* Live Word Count Counter Badge */}
+            {/* Stable Word Counter Badge */}
             <span
-              className={`text-xs px-2.5 py-1 rounded-full font-mono font-semibold flex items-center gap-1.5 transition-colors ${
+              className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-medium flex items-center gap-1.5 transition-colors ${
                 isWordCountValid
                   ? 'bg-[#0D2818] text-[#52B788] border border-[#2D6A4F]'
-                  : 'bg-[#2A170F] text-[#F97316] border border-[#EA580C]/40'
+                  : 'bg-[#1E293B] text-[#94A3B8] border border-[#334155]'
               }`}
             >
-              {isWordCountValid ? <Check className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-              <span>{currentWordCount} / 80 words min</span>
+              {isWordCountValid ? <Check className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5 text-[#94A3B8]" />}
+              <span>{currentWordCount} / 80 words</span>
             </span>
           </div>
 
@@ -273,28 +273,22 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
               touchedErrors.description ? 'luxury-input-error' : ''
             }`}
           />
-
-          {!isWordCountValid && (
-            <p className="text-[11px] text-[#F97316] flex items-center gap-1.5 mt-1 font-medium">
-              <span>⚠ Minimum 80 words constraint required ({80 - currentWordCount} more words needed).</span>
-            </p>
-          )}
         </div>
 
         {/* Submit Button */}
         <button
           type="submit"
           disabled={loading || !isWordCountValid}
-          className={`w-full py-4 px-6 rounded-xl font-semibold text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-3 ${
+          className={`w-full py-4 px-6 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 flex items-center justify-center gap-3 ${
             isWordCountValid && !loading
-              ? 'btn-silver shadow-lg shadow-[#E2E8F0]/20 hover:scale-[1.01]'
+              ? 'btn-silver shadow-lg shadow-[#E2E8F0]/10 hover:scale-[1.005]'
               : 'bg-[#1C2838] text-[#94A3B8] cursor-not-allowed border border-[#94A3B8]/20'
           }`}
         >
           {loading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin text-[#0B1320]" />
-              <span>Sending Profile Details...</span>
+              <span>Submitting Details...</span>
             </>
           ) : (
             <>
@@ -307,3 +301,4 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
     </div>
   );
 }
+

@@ -14,11 +14,9 @@ CSV_PATH = r"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB
 VERCEL_API = os.environ.get("VERCEL_API_URL", "https://your-interior-desk.vercel.app/api/submissions")
 LOCAL_API = "http://localhost:3000/api/submissions"
 
-processed_ids = set()
-
-# Excel Beautification Styles
+# Excel Beautification Styles (Steel Navy Header & Clean Typography)
 header_fill = PatternFill(start_color='101B2E', end_color='101B2E', fill_type='solid')
-header_font = Font(name='Segoe UI', size=11, bold=True, color='F8FAFC')
+header_font = Font(name='Calibri', size=11, bold=True, color='F8FAFC')
 
 row_fill_even = PatternFill(start_color='FFFFFF', end_color='FFFFFF', fill_type='solid')
 row_fill_odd = PatternFill(start_color='F8FAFC', end_color='F8FAFC', fill_type='solid')
@@ -32,6 +30,7 @@ thin_border = Border(
 
 align_center = Alignment(horizontal='center', vertical='center')
 align_left = Alignment(horizontal='left', vertical='center')
+align_wrap = Alignment(horizontal='left', vertical='top', wrap_text=True)
 
 def auto_fit_columns(ws):
     for col in ws.columns:
@@ -41,10 +40,12 @@ def auto_fit_columns(ws):
             val = str(cell.value or '')
             if len(val) > max_len:
                 max_len = len(val)
-        ws.column_dimensions[col_letter].width = min(max(max_len + 4, 16), 65)
+        # Ensure generous column width so headers never get truncated or overlap
+        ws.column_dimensions[col_letter].width = min(max(max_len + 6, 22), 70)
 
 def apply_beautification(ws):
     # Header styling
+    ws.row_dimensions[1].height = 26
     for cell in ws[1]:
         cell.fill = header_fill
         cell.font = header_font
@@ -53,11 +54,17 @@ def apply_beautification(ws):
     # Data row styling
     for row_idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
         fill = row_fill_even if row_idx % 2 == 0 else row_fill_odd
+        ws.row_dimensions[row_idx].height = 24
         for cell in row:
             cell.fill = fill
             cell.border = thin_border
-            if cell.column in [1, 2, 3, 5, 8]:  # ID, Timestamp, Role, Phone, Word Count
+            cell.font = Font(name='Calibri', size=11, color='0F172A')
+            
+            # Align center for IDs, Timestamps, Roles, Phones, Word Counts
+            if cell.column in [1, 2, 3, 5, 8]:
                 cell.alignment = align_center
+            elif cell.column in [9, 10]:  # Social handles and long descriptions
+                cell.alignment = align_wrap
             else:
                 cell.alignment = align_left
 
@@ -119,18 +126,19 @@ def save_to_sqlite(subs):
             )
         """)
         for s in subs:
+            role_str = "Designer" if s.get("role", "").lower() == "designer" else "Client"
             c.execute("""
                 INSERT OR REPLACE INTO submissions 
                 (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, wordCount, synced_to_excel)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             """, (
-                s.get("id"), s.get("timestamp"), s.get("role"), s.get("fullName"),
+                s.get("id"), s.get("timestamp"), role_str, s.get("fullName"),
                 s.get("email"), s.get("phone"), s.get("location"), s.get("budget"),
                 s.get("socialHandles", ""), s.get("description"), s.get("wordCount", 0)
             ))
         conn.commit()
         conn.close()
-    except Exception as e:
+    except Exception:
         pass
 
 def sync_1second():
@@ -148,15 +156,16 @@ def sync_1second():
     try:
         with open(CSV_PATH, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['ID', 'Timestamp', 'Role', 'Full Name', 'Email Address', 'Phone', 'Location', 'Budget (INR)', 'Social Handles', 'Word Count', 'Description'])
+            writer.writerow(['Submission Id', 'Timestamp', 'Role', 'Full Name', 'Email Address', 'Phone Number', 'Location', 'Budget Range (₹)', 'Social Handles', 'Word Count', 'Project Description'])
             for s in reversed(subs):
+                role_title = "Designer" if s.get("role", "").lower() == "designer" else "Client"
                 writer.writerow([
-                    s.get("id"), s.get("timestamp"), s.get("role", "").upper(),
+                    s.get("id"), s.get("timestamp"), role_title,
                     s.get("fullName"), s.get("email"), s.get("phone"),
                     s.get("location"), s.get("budget"), s.get("socialHandles", ""),
                     s.get("wordCount", 0), s.get("description")
                 ])
-    except Exception as e:
+    except Exception:
         pass
 
     # 3. Update Excel Workbook (.xlsx)
@@ -166,20 +175,21 @@ def sync_1second():
         # Sheet 1: Designers
         ws_designers = wb.active
         ws_designers.title = 'Designers'
-        ws_designers.append(['Submission ID', 'Timestamp', 'Full Name', 'Email Address', 'Phone / WhatsApp', 'Working Location in India', 'Working Budget Fee (₹)', 'Word Count', 'Social Handles', 'Professional Overview & Experience'])
+        ws_designers.append(['Submission Id', 'Timestamp', 'Full Name', 'Email Address', 'Phone Number', 'Working Location', 'Budget Fee (₹)', 'Word Count', 'Social Handles', 'Professional Overview'])
 
         # Sheet 2: Clients
         ws_clients = wb.create_sheet(title='Clients')
-        ws_clients.append(['Submission ID', 'Timestamp', 'Full Name', 'Email Address', 'Phone / WhatsApp', 'Property Location in India', 'Offered Budget (₹)', 'Word Count', 'Detailed Scope of Work & Requirements'])
+        ws_clients.append(['Submission Id', 'Timestamp', 'Full Name', 'Email Address', 'Phone Number', 'Property Location', 'Offered Budget (₹)', 'Word Count', 'Project Scope'])
 
         # Sheet 3: Master Log
-        ws_master = wb.create_sheet(title='All_Submissions')
-        ws_master.append(['ID', 'Timestamp', 'Role Type', 'Name', 'Email', 'Phone', 'Location', 'Budget (₹)', 'Word Count', 'Description Summary'])
+        ws_master = wb.create_sheet(title='All Submissions')
+        ws_master.append(['Submission Id', 'Timestamp', 'Role Type', 'Full Name', 'Email Address', 'Phone Number', 'Location', 'Budget Range (₹)', 'Word Count', 'Project Details'])
 
         for s in reversed(subs):
             sub_id = s.get("id")
             timestamp = s.get("timestamp")
-            role = s.get("role", "")
+            raw_role = s.get("role", "")
+            role_title = "Designer" if raw_role.lower() == "designer" else "Client"
             name = s.get("fullName")
             email = s.get("email")
             phone = s.get("phone")
@@ -189,22 +199,22 @@ def sync_1second():
             word_count = s.get("wordCount", 0)
             desc = s.get("description")
 
-            if role == 'designer':
+            if role_title == 'Designer':
                 ws_designers.append([sub_id, timestamp, name, email, phone, location, budget, word_count, social, desc])
             else:
                 ws_clients.append([sub_id, timestamp, name, email, phone, location, budget, word_count, desc])
 
-            ws_master.append([sub_id, timestamp, role.upper(), name, email, phone, location, budget, word_count, desc])
+            ws_master.append([sub_id, timestamp, role_title, name, email, phone, location, budget, word_count, desc])
 
         apply_beautification(ws_designers)
         apply_beautification(ws_clients)
         apply_beautification(ws_master)
 
         wb.save(EXCEL_PATH)
-        print(f"[✓ 1s Real-Time Sync] Updated Excel Workbook & SQL Database with {len(subs)} total submissions.")
+        print(f"[✓ 1s Auto-Sync] Excel & SQLite DB synchronized cleanly with {len(subs)} entries.")
 
     except PermissionError:
-        print(f"[Notice] Excel file is currently open in Microsoft Excel. Saved to SQL & CSV. Retrying 1s update...")
+        print(f"[Notice] Excel file is open in Microsoft Excel. Saved to SQLite & CSV. Auto-updating Excel when closed...")
 
 if __name__ == "__main__":
     print("=" * 65)
@@ -220,4 +230,5 @@ if __name__ == "__main__":
     while True:
         sync_1second()
         time.sleep(1)
+
 
