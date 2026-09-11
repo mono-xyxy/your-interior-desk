@@ -66,11 +66,24 @@ export function appendToLocalExcel(sub: SubmissionData) {
       fs.mkdirSync(dir, { recursive: true });
     }
 
+    // Try updating primary file, or fallback to pending file if MS Excel app has the file locked
+    let targetFile = excelPath;
     let wb: XLSX.WorkBook;
-    if (fs.existsSync(excelPath)) {
-      wb = XLSX.readFile(excelPath);
-    } else {
-      wb = XLSX.utils.book_new();
+
+    try {
+      if (fs.existsSync(excelPath)) {
+        wb = XLSX.readFile(excelPath);
+      } else {
+        wb = XLSX.utils.book_new();
+      }
+    } catch (lockError) {
+      console.warn("Primary Excel file is currently open in Microsoft Excel. Writing to sync backup file.");
+      targetFile = path.join(dir, "Client_Designer_Backup.xlsx");
+      if (fs.existsSync(targetFile)) {
+        wb = XLSX.readFile(targetFile);
+      } else {
+        wb = XLSX.utils.book_new();
+      }
     }
 
     if (sub.role === 'designer') {
@@ -92,9 +105,8 @@ export function appendToLocalExcel(sub: SubmissionData) {
       let existing: any[] = ws ? XLSX.utils.sheet_to_json(ws) : [];
       existing.push(designerRow);
       const newWs = XLSX.utils.json_to_sheet(existing);
-      if (wb.SheetNames.includes('Designers')) {
-        wb.Sheets['Designers'] = newWs;
-      } else {
+      wb.Sheets['Designers'] = newWs;
+      if (!wb.SheetNames.includes('Designers')) {
         XLSX.utils.book_append_sheet(wb, newWs, 'Designers');
       }
     } else {
@@ -116,9 +128,8 @@ export function appendToLocalExcel(sub: SubmissionData) {
       let existing: any[] = ws ? XLSX.utils.sheet_to_json(ws) : [];
       existing.push(clientRow);
       const newWs = XLSX.utils.json_to_sheet(existing);
-      if (wb.SheetNames.includes('Clients')) {
-        wb.Sheets['Clients'] = newWs;
-      } else {
+      wb.Sheets['Clients'] = newWs;
+      if (!wb.SheetNames.includes('Clients')) {
         XLSX.utils.book_append_sheet(wb, newWs, 'Clients');
       }
     }
@@ -142,15 +153,14 @@ export function appendToLocalExcel(sub: SubmissionData) {
     let existingMaster: any[] = wsMaster ? XLSX.utils.sheet_to_json(wsMaster) : [];
     existingMaster.push(masterRow);
     const newMasterWs = XLSX.utils.json_to_sheet(existingMaster);
-    if (wb.SheetNames.includes('All_Submissions')) {
-      wb.Sheets['All_Submissions'] = newMasterWs;
-    } else {
+    wb.Sheets['All_Submissions'] = newMasterWs;
+    if (!wb.SheetNames.includes('All_Submissions')) {
       XLSX.utils.book_append_sheet(wb, newMasterWs, 'All_Submissions');
     }
 
-    XLSX.writeFile(wb, excelPath);
-    console.log(`Successfully updated Excel at ${excelPath}`);
+    XLSX.writeFile(wb, targetFile);
+    console.log(`Successfully updated Excel at ${targetFile}`);
   } catch (err) {
-    console.warn(`Could not directly write to ${excelPath} (likely running in cloud sandbox). Data is safely recorded in web database.`, err);
+    console.warn(`Excel file write warning: ${err}`);
   }
 }
