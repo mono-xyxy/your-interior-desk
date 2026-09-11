@@ -18,8 +18,8 @@ export interface SubmissionData {
   phone: string;
   location: string;
   budget: string;
+  socialHandles?: string; // Designer social links / handles (e.g. instagram.com/studio)
   description: string;
-  wordCount: number;
 }
 
 // 1. Initialize SQLite Database
@@ -40,7 +40,7 @@ function getDb() {
       phone TEXT,
       location TEXT,
       budget TEXT,
-      wordCount INTEGER,
+      socialHandles TEXT,
       description TEXT,
       synced_to_excel INTEGER DEFAULT 0
     )
@@ -74,8 +74,8 @@ export function getSubmissions(): SubmissionData[] {
         phone: r.phone,
         location: r.location,
         budget: r.budget,
+        socialHandles: r.socialHandles || '',
         description: r.description,
-        wordCount: r.wordCount
       }));
     }
   } catch (err) {
@@ -96,7 +96,7 @@ export function saveSubmission(submission: SubmissionData): boolean {
     const db = getDb();
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO submissions 
-      (id, timestamp, role, fullName, email, phone, location, budget, wordCount, description, synced_to_excel)
+      (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, synced_to_excel)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `);
     stmt.run(
@@ -108,16 +108,15 @@ export function saveSubmission(submission: SubmissionData): boolean {
       submission.phone,
       submission.location,
       submission.budget,
-      submission.wordCount,
+      submission.socialHandles || '',
       submission.description
     );
     db.close();
-    console.log(`[SQL Database] Recorded submission ${submission.id} into SQL Table (client_designer.db)`);
   } catch (err) {
     console.error('Error inserting into SQL Table:', err);
   }
 
-  // 2. Also save to local JSON backup
+  // 2. Save to local JSON store
   try {
     ensureJsonStore();
     const current = getSubmissions();
@@ -145,7 +144,7 @@ export function appendToCsv(sub: SubmissionData) {
     }
 
     const fileExists = fs.existsSync(csvPath);
-    const headers = 'ID,Timestamp,Role,Full Name,Email Address,Phone,Location,Budget (INR),Word Count,Description\n';
+    const headers = 'ID,Timestamp,Role,Full Name,Email Address,Phone,Location,Budget (INR),Social Handles,Description\n';
     
     const cleanStr = (s: string) => `"${(s || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
     
@@ -158,7 +157,7 @@ export function appendToCsv(sub: SubmissionData) {
       cleanStr(sub.phone),
       cleanStr(sub.location),
       cleanStr(sub.budget),
-      sub.wordCount,
+      cleanStr(sub.socialHandles || ''),
       cleanStr(sub.description)
     ].join(',') + '\n';
 

@@ -18,8 +18,8 @@ export async function GET() {
         'Phone / WhatsApp': s.phone,
         'Working Location in India': s.location,
         'Working Budget Fee (₹)': s.budget,
-        'Word Count': s.wordCount || 0,
-        'Professional Description & Portfolio': s.description
+        'Social Handles / Links': s.socialHandles || '',
+        'Professional Description & Overview': s.description
       }));
 
     const wsDesigners = XLSX.utils.json_to_sheet(designersData);
@@ -36,7 +36,6 @@ export async function GET() {
         'Phone / WhatsApp': s.phone,
         'Property Location in India': s.location,
         'Offered Budget (₹)': s.budget,
-        'Word Count': s.wordCount || 0,
         'Detailed Scope of Work & Requirements': s.description
       }));
 
@@ -53,7 +52,7 @@ export async function GET() {
       'Phone': s.phone,
       'Location': s.location,
       'Budget (₹)': s.budget,
-      'Word Count': s.wordCount || 0,
+      'Social Handles': s.socialHandles || '',
       'Description': s.description
     }));
 

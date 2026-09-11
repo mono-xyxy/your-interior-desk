@@ -1,38 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveSubmission, SubmissionData } from '@/lib/excel';
 
-function countWords(str: string): number {
-  if (!str) return 0;
-  return str.trim().split(/\s+/).filter(w => w.length > 0).length;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Required basic fields
+    // Required fields check
     const requiredFields = ['fullName', 'email', 'phone', 'location', 'budget', 'description', 'role'];
     for (const field of requiredFields) {
       if (!body[field] || body[field].toString().trim() === '') {
         return NextResponse.json(
-          { success: false, error: `Please fill out all required fields (${field}).` },
+          { success: false, error: `Please complete all required fields (${field}).` },
           { status: 400 }
         );
       }
-    }
-
-    const descriptionText = body.description.trim();
-    const wordCount = countWords(descriptionText);
-
-    // Minimum 80 words constraint validation
-    if (wordCount < 80) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Description must contain at least 80 words. Current count: ${wordCount} words.` 
-        },
-        { status: 400 }
-      );
     }
 
     const newSubmission: SubmissionData = {
@@ -44,15 +25,15 @@ export async function POST(req: NextRequest) {
       phone: body.phone.trim(),
       location: body.location.trim(),
       budget: body.budget.trim(),
-      description: descriptionText,
-      wordCount: wordCount,
+      socialHandles: body.socialHandles ? body.socialHandles.trim() : '',
+      description: body.description.trim(),
     };
 
     saveSubmission(newSubmission);
 
     return NextResponse.json({
       success: true,
-      message: 'Submission recorded successfully! Spreadsheet updated.',
+      message: 'Submission recorded successfully!',
       data: newSubmission,
     });
   } catch (error: any) {
