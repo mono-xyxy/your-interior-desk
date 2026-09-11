@@ -1,0 +1,67 @@
+[
+  {
+    "id": "YID-DES101",
+    "timestamp": "11/09/2026, 16:40:00",
+    "role": "designer",
+    "fullName": "Sarah Miller",
+    "email": "sarah@designstudio.in",
+    "phone": "+91 98765 43210",
+    "location": "Bangalore",
+    "budget": "₹15 Lakhs",
+    "wordCount": 0,
+    "description": "Professional interior designer with 8 years of luxury residential design experience across South India. Specializing in modern contemporary 3BHK apartments, turnkey villas, custom woodwork, modular kitchens, Italian marble flooring, and smart home lighting solutions. Worked with over 50 premium homeowners to deliver state-of-the-art living spaces tailored to perfection.",
+    "socialHandles": "1"
+  },
+  {
+    "id": "YID-CLI202",
+    "timestamp": "11/09/2026, 16:42:00",
+    "role": "client",
+    "fullName": "James Smith",
+    "email": "james@example.com",
+    "phone": "+91 90353 33300",
+    "location": "Mumbai",
+    "budget": "₹20 Lakhs",
+    "wordCount": 0,
+    "description": "Looking for an experienced interior designer for a 4BHK luxury duplex penthouse in Bandra West, Mumbai. Total area is 3,200 sq.ft. Complete scope includes full home turnkey interior, modular kitchen, false ceiling, master bedroom suite design, walk-in closets, home automation, and acoustic living room paneling. Project execution expected within 4 months.",
+    "socialHandles": "1"
+  },
+  {
+    "id": "YID-BAZI3UO",
+    "timestamp": "11/9/2026, 4:40:27 pm",
+    "role": "client",
+    "fullName": "Veda R",
+    "email": "vedawork2003@gmail.com",
+    "phone": "+919035333300",
+    "location": "Bengaluru",
+    "budget": "15lakhs",
+    "wordCount": 86,
+    "description": "A good interior designer combines creativity with practical problem-solving. They understand how to use space efficiently, select suitable materials, create balanced colour palettes, and choose furniture that matches the purpose of a room. Strong designers also listen carefully to clients and translate their needs into thoughtful spaces. They pay attention to proportion, lighting, functionality, and detail while maintaining a clear design vision. Communication, budgeting, project coordination, and adaptability are equally important because successful design requires both artistic thinking and the ability to turn ideas into reality.",
+    "socialHandles": ""
+  },
+  {
+    "id": "YID-SZ2QJO9",
+    "timestamp": "11/9/2026, 6:50:34 pm",
+    "role": "client",
+    "fullName": "JANJI",
+    "email": "vedawork2003@gmail.com",
+    "phone": "+919035333300",
+    "location": "Bengaluru",
+    "budget": "15lakhs",
+    "wordCount": 86,
+    "description": "A good interior designer combines creativity with practical problem-solving. They understand how to use space efficiently, select suitable materials, create balanced colour palettes, and choose furniture that matches the purpose of a room. Strong designers also listen carefully to clients and translate their needs into thoughtful spaces. They pay attention to proportion, lighting, functionality, and detail while maintaining a clear design vision. Communication, budgeting, project coordination, and adaptability are equally important because successful design requires both artistic thinking and the ability to turn ideas into reality.",
+    "socialHandles": ""
+  },
+  {
+    "id": "YID-1I9WRA3",
+    "timestamp": "11/9/2026, 6:58:37 pm",
+    "role": "designer",
+    "fullName": "Loki",
+    "email": "loki@design.com",
+    "phone": "+919620000128",
+    "location": "Bengaluru",
+    "budget": "50000",
+    "wordCount": 80,
+    "description": "I’m an interior designer who believes every space should feel intentional, functional, and personal. I focus on understanding how people live before designing how their space looks. My strengths include space planning, material selection, colour coordination, furniture styling, lighting, and creating cohesive interiors. I enjoy balancing creativity with practicality, ensuring every design decision has a purpose. I’m detail-oriented, open to new ideas, and committed to creating spaces that are visually appealing, comfortable, and meaningful to the people who use them.",
+    "socialHandles": "https://www.linkedin.com/in/mono-xyxy"
+  }
+]

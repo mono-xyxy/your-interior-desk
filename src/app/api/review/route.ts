@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { saveReview, ReviewData, analyzeReviewSentiment, countWords } from '@/lib/excel';
 
 export async function POST(req: NextRequest) {
@@ -15,10 +15,8 @@ export async function POST(req: NextRequest) {
     const reviewText = body.reviewText.trim();
     const wordCount = countWords(reviewText);
 
-    // Auto Sentiment & Emoji Keyword Analysis
     const sentiment = analyzeReviewSentiment(reviewText);
 
-    // Override with user selected emoji/keyword if provided
     const ratingKeyword = body.ratingKeyword || sentiment.ratingKeyword;
     const emoji = body.emoji || sentiment.emoji;
     const ratingScore = body.ratingScore || sentiment.score;
@@ -37,7 +35,7 @@ export async function POST(req: NextRequest) {
       wordCount: wordCount,
     };
 
-    saveReview(newReview);
+    await saveReview(newReview);
 
     return NextResponse.json({
       success: true,
@@ -51,4 +49,15 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 }

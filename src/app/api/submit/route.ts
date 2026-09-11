@@ -1,16 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { saveSubmission, SubmissionData, countWords } from '@/lib/excel';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Required fields check
     const requiredFields = ['fullName', 'email', 'phone', 'location', 'budget', 'description', 'role'];
     for (const field of requiredFields) {
       if (!body[field] || body[field].toString().trim() === '') {
         return NextResponse.json(
-          { success: false, error: `Please complete all required fields (${field}).` },
+          { success: false, error: Please complete all required fields (). },
           { status: 400 }
         );
       }
@@ -19,12 +18,11 @@ export async function POST(req: NextRequest) {
     const descriptionText = body.description.trim();
     const wordCount = countWords(descriptionText);
 
-    // 80 Words Minimum Constraint Validation
     if (wordCount < 80) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: `Minimum 80 words required. You currently provided ${wordCount} words (${80 - wordCount} more words needed).` 
+        {
+          success: false,
+          error: Minimum 80 words required. You currently provided  words ( more words needed).
         },
         { status: 400 }
       );
@@ -44,7 +42,7 @@ export async function POST(req: NextRequest) {
       wordCount: wordCount,
     };
 
-    saveSubmission(newSubmission);
+    await saveSubmission(newSubmission);
 
     return NextResponse.json({
       success: true,
@@ -58,4 +56,15 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 }

@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { getSubmissions } from '@/lib/excel';
 
 export async function GET() {
-  const data = getSubmissions();
-  
+  const data = await getSubmissions();
+
   return NextResponse.json(
     {
       success: true,
@@ -33,4 +33,3 @@ export async function OPTIONS() {
     },
   });
 }
-

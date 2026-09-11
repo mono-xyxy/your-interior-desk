@@ -1,0 +1,28 @@
+[
+  {
+    "id": "REV-1001",
+    "timestamp": "11/09/2026, 16:51:00",
+    "name": "Sarah Miller",
+    "email": "sarah@example.com",
+    "role": "Designer",
+    "ratingScore": 5,
+    "ratingKeyword": "Excellent",
+    "emoji": "🤩",
+    "reviewText": "Excellent luxury design quality, amazing project management, perfect interior execution and state-of-the-art finish!",
+    "matchedKeywords": "excellent, luxury, amazing, perfect",
+    "wordCount": 18
+  },
+  {
+    "id": "REV-GF2HSKG",
+    "timestamp": "11/9/2026, 6:56:54 pm",
+    "name": "Anonymous",
+    "email": "N/A",
+    "role": "Designer",
+    "ratingScore": 5,
+    "ratingKeyword": "Excellent",
+    "emoji": "🤩",
+    "reviewText": "Great",
+    "matchedKeywords": "great",
+    "wordCount": 1
+  }
+]

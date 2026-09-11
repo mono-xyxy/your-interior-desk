@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { getReviews } from '@/lib/excel';
 
 export async function GET() {
-  const data = getReviews();
-  
+  const data = await getReviews();
+
   return NextResponse.json(
     {
       success: true,
