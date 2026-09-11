@@ -297,7 +297,7 @@ def sync_1second():
         apply_beautification(ws_reviews)
 
         wb.save(EXCEL_PATH)
-        print(f"[✓ 1s Auto-Sync] Synced {len(subs)} Submissions and {len(reviews)} Reviews into Excel & SQLite DB.")
+        print(f"[OK 1s Auto-Sync] Synced {len(subs)} Submissions and {len(reviews)} Reviews into Excel & SQLite DB.")
 
     except PermissionError:
         print(f"[Notice] Excel file is open in Microsoft Excel. Saved to SQLite & CSV. Auto-updating Excel when closed...")
