@@ -8,6 +8,7 @@ export const LOCAL_CSV_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInterior
 export const LOCAL_REVIEWS_CSV_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\Client_Designer_Reviews.csv";
 
 // GitHub persistent store — all Vercel instances read/write the same source
+// Reads work on public repos without auth; writes require GITHUB_TOKEN
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const GITHUB_REPO = 'mono-xyxy/your-interior-desk';
 const GITHUB_SUBS_PATH = 'data/submissions.json';
@@ -47,14 +48,16 @@ if (!globalThis._yid_reviews_store) globalThis._yid_reviews_store = [];
 // ─── GitHub Contents API helpers ───────────────────────────────────────────────
 
 async function githubGet(filePath: string): Promise<{ content: any; sha: string } | null> {
-  if (!GITHUB_TOKEN) return null;
   try {
+    // Public repo — reads work without auth (60 req/hr unauthenticated, 5000/hr with token)
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'Cache-Control': 'no-cache',
+    };
+    if (GITHUB_TOKEN) headers['Authorization'] = `token ${GITHUB_TOKEN}`;
+
     const res = await fetch(`${GITHUB_API_BASE}/${filePath}`, {
-      headers: {
-        Authorization: `token ${GITHUB_TOKEN}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Cache-Control': 'no-cache',
-      },
+      headers,
       cache: 'no-store',
     });
     if (!res.ok) return null;
