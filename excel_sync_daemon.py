@@ -10,9 +10,11 @@ DB_PATH = r"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\
 EXCEL_PATH = r"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\Client_Designer.xlsx"
 CSV_PATH = r"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\Client_Designer.csv"
 
-# Cloud Vercel Endpoint or Local Server Endpoint
+# Cloud Vercel Endpoints or Local Server Endpoints
 VERCEL_API = os.environ.get("VERCEL_API_URL", "https://your-interior-desk.vercel.app/api/submissions")
+VERCEL_REVIEWS_API = os.environ.get("VERCEL_REVIEWS_API_URL", "https://your-interior-desk.vercel.app/api/reviews")
 LOCAL_API = "http://localhost:3000/api/submissions"
+LOCAL_REVIEWS_API = "http://localhost:3000/api/reviews"
 
 # Excel Beautification Styles (Steel Navy Header & Clean Typography)
 header_fill = PatternFill(start_color='101B2E', end_color='101B2E', fill_type='solid')
@@ -40,18 +42,15 @@ def auto_fit_columns(ws):
             val = str(cell.value or '')
             if len(val) > max_len:
                 max_len = len(val)
-        # Ensure generous column width so headers never get truncated or overlap
         ws.column_dimensions[col_letter].width = min(max(max_len + 6, 22), 70)
 
 def apply_beautification(ws):
-    # Header styling
     ws.row_dimensions[1].height = 26
     for cell in ws[1]:
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = align_center
 
-    # Data row styling
     for row_idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
         fill = row_fill_even if row_idx % 2 == 0 else row_fill_odd
         ws.row_dimensions[row_idx].height = 24
@@ -60,10 +59,9 @@ def apply_beautification(ws):
             cell.border = thin_border
             cell.font = Font(name='Calibri', size=11, color='0F172A')
             
-            # Align center for IDs, Timestamps, Roles, Phones, Word Counts
-            if cell.column in [1, 2, 3, 5, 8]:
+            if cell.column in [1, 2, 3, 5, 6, 7, 8]:
                 cell.alignment = align_center
-            elif cell.column in [9, 10]:  # Social handles and long descriptions
+            elif cell.column in [9, 10]:
                 cell.alignment = align_wrap
             else:
                 cell.alignment = align_left
@@ -71,7 +69,6 @@ def apply_beautification(ws):
     auto_fit_columns(ws)
 
 def fetch_latest_submissions():
-    # Try cloud Vercel API first
     for endpoint in [VERCEL_API, LOCAL_API]:
         try:
             res = requests.get(endpoint, timeout=3)
@@ -83,7 +80,6 @@ def fetch_latest_submissions():
         except Exception:
             pass
 
-    # Fallback to local SQLite Database
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -103,7 +99,38 @@ def fetch_latest_submissions():
 
     return []
 
-def save_to_sqlite(subs):
+def fetch_latest_reviews():
+    for endpoint in [VERCEL_REVIEWS_API, LOCAL_REVIEWS_API]:
+        try:
+            res = requests.get(endpoint, timeout=3)
+            if res.status_code == 200:
+                data = res.json()
+                revs = data.get("reviews", [])
+                if revs:
+                    return revs
+        except Exception:
+            pass
+
+    if os.path.exists(DB_PATH):
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("SELECT id, timestamp, name, email, role, ratingScore, ratingKeyword, emoji, reviewText, matchedKeywords, wordCount FROM reviews ORDER BY timestamp ASC")
+            rows = c.fetchall()
+            conn.close()
+            return [
+                {
+                    "id": r[0], "timestamp": r[1], "name": r[2], "email": r[3],
+                    "role": r[4], "ratingScore": r[5], "ratingKeyword": r[6],
+                    "emoji": r[7], "reviewText": r[8], "matchedKeywords": r[9], "wordCount": r[10]
+                } for r in rows
+            ]
+        except Exception:
+            pass
+
+    return []
+
+def save_to_sqlite(subs, reviews):
     if not os.path.exists(os.path.dirname(DB_PATH)):
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     try:
@@ -125,6 +152,26 @@ def save_to_sqlite(subs):
                 synced_to_excel INTEGER DEFAULT 0
             )
         """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS reviews (
+                id TEXT PRIMARY KEY,
+                timestamp TEXT,
+                name TEXT,
+                email TEXT,
+                role TEXT,
+                ratingScore INTEGER,
+                ratingKeyword TEXT,
+                emoji TEXT,
+                reviewText TEXT,
+                matchedKeywords TEXT,
+                wordCount INTEGER
+            )
+        """)
+        try:
+            c.execute("ALTER TABLE submissions ADD COLUMN socialHandles TEXT")
+        except Exception:
+            pass
+
         for s in subs:
             role_str = "Designer" if s.get("role", "").lower() == "designer" else "Client"
             c.execute("""
@@ -136,6 +183,18 @@ def save_to_sqlite(subs):
                 s.get("email"), s.get("phone"), s.get("location"), s.get("budget"),
                 s.get("socialHandles", ""), s.get("description"), s.get("wordCount", 0)
             ))
+
+        for r in reviews:
+            c.execute("""
+                INSERT OR REPLACE INTO reviews 
+                (id, timestamp, name, email, role, ratingScore, ratingKeyword, emoji, reviewText, matchedKeywords, wordCount)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                r.get("id"), r.get("timestamp"), r.get("name"), r.get("email"),
+                r.get("role"), r.get("ratingScore", 5), r.get("ratingKeyword", "Good"),
+                r.get("emoji", "😊"), r.get("reviewText"), r.get("matchedKeywords", ""), r.get("wordCount", 0)
+            ))
+
         conn.commit()
         conn.close()
     except Exception:
@@ -143,16 +202,17 @@ def save_to_sqlite(subs):
 
 def sync_1second():
     subs = fetch_latest_submissions()
-    if not subs:
+    reviews = fetch_latest_reviews()
+    if not subs and not reviews:
         return
 
     # 1. Update SQL Database
-    save_to_sqlite(subs)
+    save_to_sqlite(subs, reviews)
 
     dir_path = os.path.dirname(EXCEL_PATH)
     os.makedirs(dir_path, exist_ok=True)
 
-    # 2. Update CSV (Instant lock-free logging)
+    # 2. Update CSV Log Files
     try:
         with open(CSV_PATH, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
@@ -164,6 +224,20 @@ def sync_1second():
                     s.get("fullName"), s.get("email"), s.get("phone"),
                     s.get("location"), s.get("budget"), s.get("socialHandles", ""),
                     s.get("wordCount", 0), s.get("description")
+                ])
+    except Exception:
+        pass
+
+    try:
+        reviews_csv = os.path.join(dir_path, "Client_Designer_Reviews.csv")
+        with open(reviews_csv, mode='w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Review Id', 'Timestamp', 'Author Name', 'Email Address', 'Role', 'Sentiment Keyword', 'Emoji', 'Rating Score', 'Matched Keywords', 'Word Count', 'Review Text'])
+            for r in reversed(reviews):
+                writer.writerow([
+                    r.get("id"), r.get("timestamp"), r.get("name"), r.get("email"),
+                    r.get("role"), r.get("ratingKeyword"), r.get("emoji"),
+                    r.get("ratingScore"), r.get("matchedKeywords"), r.get("wordCount"), r.get("reviewText")
                 ])
     except Exception:
         pass
@@ -184,6 +258,10 @@ def sync_1second():
         # Sheet 3: Master Log
         ws_master = wb.create_sheet(title='All Submissions')
         ws_master.append(['Submission Id', 'Timestamp', 'Role Type', 'Full Name', 'Email Address', 'Phone Number', 'Location', 'Budget Range (₹)', 'Word Count', 'Project Details'])
+
+        # Sheet 4: Reviews & Feedback
+        ws_reviews = wb.create_sheet(title='Reviews')
+        ws_reviews.append(['Review Id', 'Timestamp', 'Author Name', 'Email Address', 'Role', 'Sentiment Keyword', 'Emoji', 'Rating Score', 'Matched Keywords', 'Review Text'])
 
         for s in reversed(subs):
             sub_id = s.get("id")
@@ -206,12 +284,20 @@ def sync_1second():
 
             ws_master.append([sub_id, timestamp, role_title, name, email, phone, location, budget, word_count, desc])
 
+        for r in reversed(reviews):
+            ws_reviews.append([
+                r.get("id"), r.get("timestamp"), r.get("name"), r.get("email"),
+                r.get("role"), r.get("ratingKeyword"), r.get("emoji"),
+                r.get("ratingScore"), r.get("matchedKeywords"), r.get("reviewText")
+            ])
+
         apply_beautification(ws_designers)
         apply_beautification(ws_clients)
         apply_beautification(ws_master)
+        apply_beautification(ws_reviews)
 
         wb.save(EXCEL_PATH)
-        print(f"[✓ 1s Auto-Sync] Excel & SQLite DB synchronized cleanly with {len(subs)} entries.")
+        print(f"[✓ 1s Auto-Sync] Synced {len(subs)} Submissions and {len(reviews)} Reviews into Excel & SQLite DB.")
 
     except PermissionError:
         print(f"[Notice] Excel file is open in Microsoft Excel. Saved to SQLite & CSV. Auto-updating Excel when closed...")
@@ -219,16 +305,17 @@ def sync_1second():
 if __name__ == "__main__":
     print("=" * 65)
     print("  YOUR INTERIOR DESK - 1-SECOND REAL-TIME EXCEL AUTO-SYNC DAEMON")
-    print("  Vercel Cloud API:", VERCEL_API)
-    print("  Target SQLite DB:", DB_PATH)
-    print("  Target Excel:    ", EXCEL_PATH)
-    print("  Target CSV:      ", CSV_PATH)
-    print("  Interval:         EVERY 1 SECOND")
+    print("  Vercel Submissions API:", VERCEL_API)
+    print("  Vercel Reviews API:    ", VERCEL_REVIEWS_API)
+    print("  Target SQLite DB:      ", DB_PATH)
+    print("  Target Excel:          ", EXCEL_PATH)
+    print("  Interval:               EVERY 1 SECOND")
     print("=" * 65)
     print("[*] Running 1-second real-time sync loop... Press Ctrl+C to stop.\n")
 
     while True:
         sync_1second()
         time.sleep(1)
+
 
 

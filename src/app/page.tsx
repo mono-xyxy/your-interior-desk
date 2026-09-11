@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import ArchitecturalBackground from '@/components/ArchitecturalBackground';
 import Header from '@/components/Header';
-import RoleSelector from '@/components/RoleSelector';
+import RoleSelector, { TabType } from '@/components/RoleSelector';
 import DesignerForm from '@/components/DesignerForm';
 import ClientForm from '@/components/ClientForm';
+import ReviewForm from '@/components/ReviewForm';
 
 export default function Home() {
-  const [activeRole, setActiveRole] = useState<'designer' | 'client'>('designer');
+  const [activeRole, setActiveRole] = useState<TabType>('designer');
 
   return (
     <div className="min-h-screen relative flex flex-col justify-between selection:bg-[#E2E8F0] selection:text-[#0B1422]">
@@ -27,11 +28,9 @@ export default function Home() {
 
         {/* Dynamic Vertical Row-by-Row Form Area */}
         <section className="max-w-2xl mx-auto px-4 my-4">
-          {activeRole === 'designer' ? (
-            <DesignerForm onSuccess={() => {}} />
-          ) : (
-            <ClientForm onSuccess={() => {}} />
-          )}
+          {activeRole === 'designer' && <DesignerForm onSuccess={() => {}} />}
+          {activeRole === 'client' && <ClientForm onSuccess={() => {}} />}
+          {activeRole === 'review' && <ReviewForm onSuccess={() => {}} />}
         </section>
       </main>
 
@@ -44,3 +43,4 @@ export default function Home() {
     </div>
   );
 }
+
