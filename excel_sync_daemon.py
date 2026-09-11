@@ -68,7 +68,7 @@ def apply_beautification(ws):
 
     auto_fit_columns(ws)
 
-def fetch_latest_submissions():
+def fetch_cloud_submissions():
     for endpoint in [VERCEL_API, LOCAL_API]:
         try:
             res = requests.get(endpoint, timeout=3)
@@ -79,7 +79,22 @@ def fetch_latest_submissions():
                     return subs
         except Exception:
             pass
+    return []
 
+def fetch_cloud_reviews():
+    for endpoint in [VERCEL_REVIEWS_API, LOCAL_REVIEWS_API]:
+        try:
+            res = requests.get(endpoint, timeout=3)
+            if res.status_code == 200:
+                data = res.json()
+                revs = data.get("reviews", [])
+                if revs:
+                    return revs
+        except Exception:
+            pass
+    return []
+
+def get_all_db_submissions():
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -96,21 +111,9 @@ def fetch_latest_submissions():
             ]
         except Exception:
             pass
-
     return []
 
-def fetch_latest_reviews():
-    for endpoint in [VERCEL_REVIEWS_API, LOCAL_REVIEWS_API]:
-        try:
-            res = requests.get(endpoint, timeout=3)
-            if res.status_code == 200:
-                data = res.json()
-                revs = data.get("reviews", [])
-                if revs:
-                    return revs
-        except Exception:
-            pass
-
+def get_all_db_reviews():
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -127,7 +130,6 @@ def fetch_latest_reviews():
             ]
         except Exception:
             pass
-
     return []
 
 def save_to_sqlite(subs, reviews):
@@ -201,18 +203,25 @@ def save_to_sqlite(subs, reviews):
         pass
 
 def sync_1second():
-    subs = fetch_latest_submissions()
-    reviews = fetch_latest_reviews()
+    # 1. Fetch Cloud API submissions & reviews
+    cloud_subs = fetch_cloud_submissions()
+    cloud_revs = fetch_cloud_reviews()
+
+    # 2. Merge Cloud items into local SQLite DB
+    if cloud_subs or cloud_revs:
+        save_to_sqlite(cloud_subs, cloud_revs)
+
+    # 3. Read ALL cumulative records from SQLite DB
+    subs = get_all_db_submissions()
+    reviews = get_all_db_reviews()
+
     if not subs and not reviews:
         return
-
-    # 1. Update SQL Database
-    save_to_sqlite(subs, reviews)
 
     dir_path = os.path.dirname(EXCEL_PATH)
     os.makedirs(dir_path, exist_ok=True)
 
-    # 2. Update CSV Log Files
+    # 4. Update CSV Log Files with ALL cumulative records
     try:
         with open(CSV_PATH, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
@@ -242,7 +251,7 @@ def sync_1second():
     except Exception:
         pass
 
-    # 3. Update Excel Workbook (.xlsx)
+    # 5. Update Excel Workbook (.xlsx) with ALL cumulative records
     try:
         wb = openpyxl.Workbook()
 
@@ -297,7 +306,7 @@ def sync_1second():
         apply_beautification(ws_reviews)
 
         wb.save(EXCEL_PATH)
-        print(f"[OK 1s Auto-Sync] Synced {len(subs)} Submissions and {len(reviews)} Reviews into Excel & SQLite DB.")
+        print(f"[OK 1s Auto-Sync] Synced ALL {len(subs)} Cumulative Submissions and {len(reviews)} Reviews into Excel & SQLite DB.")
 
     except PermissionError:
         print(f"[Notice] Excel file is open in Microsoft Excel. Saved to SQLite & CSV. Auto-updating Excel when closed...")
@@ -316,6 +325,7 @@ if __name__ == "__main__":
     while True:
         sync_1second()
         time.sleep(1)
+
 
 
 
