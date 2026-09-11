@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import Database from 'better-sqlite3';
 
 export const LOCAL_DB_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\client_designer.db";
 export const LOCAL_EXCEL_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\Client_Designer.xlsx";
@@ -8,6 +7,8 @@ export const LOCAL_CSV_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInterior
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const JSON_FILE_PATH = path.join(DATA_DIR, 'submissions.json');
+const TMP_JSON_PATH = '/tmp/submissions.json';
+const TMP_DB_PATH = '/tmp/client_designer.db';
 
 export interface SubmissionData {
   id: string;
@@ -18,155 +19,197 @@ export interface SubmissionData {
   phone: string;
   location: string;
   budget: string;
-  socialHandles?: string; // Designer social links / handles (e.g. instagram.com/studio)
+  socialHandles?: string;
   description: string;
+  wordCount: number;
 }
 
-// 1. Initialize SQLite Database
-function getDb() {
-  const dir = path.dirname(LOCAL_DB_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+// Global in-memory cache to preserve state across Vercel serverless invocations
+declare global {
+  var _yid_submissions_store: SubmissionData[] | undefined;
+}
 
-  const db = new Database(LOCAL_DB_PATH);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS submissions (
-      id TEXT PRIMARY KEY,
-      timestamp TEXT,
-      role TEXT,
-      fullName TEXT,
-      email TEXT,
-      phone TEXT,
-      location TEXT,
-      budget TEXT,
-      socialHandles TEXT,
-      description TEXT,
-      synced_to_excel INTEGER DEFAULT 0
-    )
-  `);
-  return db;
+if (!globalThis._yid_submissions_store) {
+  globalThis._yid_submissions_store = [];
 }
 
 function ensureJsonStore() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(JSON_FILE_PATH)) {
-    fs.writeFileSync(JSON_FILE_PATH, JSON.stringify([], null, 2));
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch (e) {
+    // Ignore read-only filesystem errors on Vercel
   }
 }
 
 export function getSubmissions(): SubmissionData[] {
-  ensureJsonStore();
+  const store = globalThis._yid_submissions_store || [];
+  
+  // Try reading from data/submissions.json
   try {
-    const db = getDb();
-    const rows = db.prepare(`SELECT * FROM submissions ORDER BY timestamp DESC`).all() as any[];
-    db.close();
-
-    if (rows && rows.length > 0) {
-      return rows.map(r => ({
-        id: r.id,
-        timestamp: r.timestamp,
-        role: r.role as 'designer' | 'client',
-        fullName: r.fullName,
-        email: r.email,
-        phone: r.phone,
-        location: r.location,
-        budget: r.budget,
-        socialHandles: r.socialHandles || '',
-        description: r.description,
-      }));
+    if (fs.existsSync(JSON_FILE_PATH)) {
+      const data = fs.readFileSync(JSON_FILE_PATH, 'utf8');
+      const parsed: SubmissionData[] = JSON.parse(data);
+      for (const item of parsed) {
+        if (!store.some(s => s.id === item.id)) {
+          store.push(item);
+        }
+      }
     }
   } catch (err) {
-    console.warn('SQLite read fallback to JSON:', err);
+    // ignore
   }
 
+  // Try reading from /tmp/submissions.json on Vercel
   try {
-    const data = fs.readFileSync(JSON_FILE_PATH, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    return [];
+    if (fs.existsSync(TMP_JSON_PATH)) {
+      const data = fs.readFileSync(TMP_JSON_PATH, 'utf8');
+      const parsed: SubmissionData[] = JSON.parse(data);
+      for (const item of parsed) {
+        if (!store.some(s => s.id === item.id)) {
+          store.push(item);
+        }
+      }
+    }
+  } catch (err) {
+    // ignore
   }
+
+  // Sort newest first
+  return store.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+export function countWords(str: string): number {
+  if (!str || !str.trim()) return 0;
+  return str.trim().split(/\s+/).filter(w => w.length > 0).length;
 }
 
 export function saveSubmission(submission: SubmissionData): boolean {
-  // 1. Save into SQL Table (client_designer.db)
-  try {
-    const db = getDb();
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO submissions 
-      (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, synced_to_excel)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-    `);
-    stmt.run(
-      submission.id,
-      submission.timestamp,
-      submission.role,
-      submission.fullName,
-      submission.email,
-      submission.phone,
-      submission.location,
-      submission.budget,
-      submission.socialHandles || '',
-      submission.description
-    );
-    db.close();
-  } catch (err) {
-    console.error('Error inserting into SQL Table:', err);
+  // 1. Save into global memory cache immediately
+  if (!globalThis._yid_submissions_store) {
+    globalThis._yid_submissions_store = [];
+  }
+  const existingIdx = globalThis._yid_submissions_store.findIndex(s => s.id === submission.id);
+  if (existingIdx >= 0) {
+    globalThis._yid_submissions_store[existingIdx] = submission;
+  } else {
+    globalThis._yid_submissions_store.unshift(submission);
   }
 
-  // 2. Save to local JSON store
+  const allSubs = getSubmissions();
+
+  // 2. Save to data/submissions.json (if directory writable)
   try {
     ensureJsonStore();
-    const current = getSubmissions();
-    const exists = current.some(s => s.id === submission.id);
-    if (!exists) {
-      current.unshift(submission);
-      fs.writeFileSync(JSON_FILE_PATH, JSON.stringify(current, null, 2));
-    }
+    fs.writeFileSync(JSON_FILE_PATH, JSON.stringify(allSubs, null, 2));
   } catch (err) {
-    console.error('Error recording to JSON store:', err);
+    // On Vercel read-only FS, write to /tmp/submissions.json
+    try {
+      fs.writeFileSync(TMP_JSON_PATH, JSON.stringify(allSubs, null, 2));
+    } catch (e) {
+      console.warn('Unable to write to /tmp json store:', e);
+    }
   }
 
-  // 3. Immediately write to CSV
-  appendToCsv(submission);
+  // 3. Save into SQLite Database (Local desktop path & Vercel /tmp DB)
+  for (const targetDbPath of [LOCAL_DB_PATH, TMP_DB_PATH]) {
+    try {
+      const sqlite3 = require('better-sqlite3');
+      const dir = path.dirname(targetDbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      const db = sqlite3(targetDbPath);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS submissions (
+          id TEXT PRIMARY KEY,
+          timestamp TEXT,
+          role TEXT,
+          fullName TEXT,
+          email TEXT,
+          phone TEXT,
+          location TEXT,
+          budget TEXT,
+          socialHandles TEXT,
+          description TEXT,
+          wordCount INTEGER,
+          synced_to_excel INTEGER DEFAULT 0
+        )
+      `);
+
+      const stmt = db.prepare(`
+        INSERT OR REPLACE INTO submissions 
+        (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, wordCount, synced_to_excel)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      `);
+
+      stmt.run(
+        submission.id,
+        submission.timestamp,
+        submission.role,
+        submission.fullName,
+        submission.email,
+        submission.phone,
+        submission.location,
+        submission.budget,
+        submission.socialHandles || '',
+        submission.description,
+        submission.wordCount
+      );
+
+      db.close();
+    } catch (err) {
+      // Expected notice when running in serverless edge without native C++ sqlite bindings
+    }
+  }
+
+  // 4. Immediately write to CSV (lock-free)
+  try {
+    appendToCsv(submission);
+  } catch (err) {
+    console.warn('CSV append notice:', err);
+  }
 
   return true;
 }
 
 export function appendToCsv(sub: SubmissionData) {
-  try {
-    const csvPath = LOCAL_CSV_PATH;
-    const dir = path.dirname(csvPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+  for (const csvPath of [LOCAL_CSV_PATH, '/tmp/Client_Designer.csv']) {
+    try {
+      const dir = path.dirname(csvPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
 
-    const fileExists = fs.existsSync(csvPath);
-    const headers = 'ID,Timestamp,Role,Full Name,Email Address,Phone,Location,Budget (INR),Social Handles,Description\n';
-    
-    const cleanStr = (s: string) => `"${(s || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
-    
-    const row = [
-      cleanStr(sub.id),
-      cleanStr(sub.timestamp),
-      cleanStr(sub.role.toUpperCase()),
-      cleanStr(sub.fullName),
-      cleanStr(sub.email),
-      cleanStr(sub.phone),
-      cleanStr(sub.location),
-      cleanStr(sub.budget),
-      cleanStr(sub.socialHandles || ''),
-      cleanStr(sub.description)
-    ].join(',') + '\n';
+      const fileExists = fs.existsSync(csvPath);
+      const headers = 'ID,Timestamp,Role,Full Name,Email Address,Phone,Location,Budget (INR),Social Handles,Word Count,Description\n';
+      
+      const cleanStr = (s: string) => `"${(s || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+      
+      const row = [
+        cleanStr(sub.id),
+        cleanStr(sub.timestamp),
+        cleanStr(sub.role.toUpperCase()),
+        cleanStr(sub.fullName),
+        cleanStr(sub.email),
+        cleanStr(sub.phone),
+        cleanStr(sub.location),
+        cleanStr(sub.budget),
+        cleanStr(sub.socialHandles || ''),
+        sub.wordCount,
+        cleanStr(sub.description)
+      ].join(',') + '\n';
 
-    if (!fileExists) {
-      fs.writeFileSync(csvPath, headers + row, 'utf8');
-    } else {
-      fs.appendFileSync(csvPath, row, 'utf8');
+      if (!fileExists) {
+        fs.writeFileSync(csvPath, headers + row, 'utf8');
+      } else {
+        fs.appendFileSync(csvPath, row, 'utf8');
+      }
+    } catch (err) {
+      // ignore
     }
-  } catch (err) {
-    console.warn('CSV write warning:', err);
   }
 }
+

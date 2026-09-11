@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Send, CheckCircle2, AlertCircle, Loader2, Link2 } from 'lucide-react';
+import { Send, CheckCircle2, AlertCircle, Loader2, FileText, Check } from 'lucide-react';
 
 interface DesignerFormProps {
   onSuccess: () => void;
@@ -22,6 +22,14 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [touchedErrors, setTouchedErrors] = useState<{ [key: string]: boolean }>({});
+
+  const countWords = (str: string) => {
+    if (!str || !str.trim()) return 0;
+    return str.trim().split(/\s+/).filter(w => w.length > 0).length;
+  };
+
+  const currentWordCount = countWords(formData.description);
+  const isWordCountValid = currentWordCount >= 80;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -46,9 +54,16 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
       }
     }
 
+    if (!isWordCountValid) {
+      newErrors.description = true;
+      hasError = true;
+      setErrorMsg(`Minimum 80 words constraint required. You currently have ${currentWordCount} words (${80 - currentWordCount} more words needed).`);
+    } else if (hasError) {
+      setErrorMsg('Please fill out all highlighted required fields before submitting.');
+    }
+
     if (hasError) {
       setTouchedErrors(newErrors);
-      setErrorMsg('Please complete all highlighted required fields before submitting.');
       return;
     }
 
@@ -105,22 +120,22 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
         </p>
       </div>
 
-      {/* Success Notification */}
+      {/* Success Notification Banner */}
       {submitted && (
-        <div className="mb-8 p-5 rounded-xl bg-[#0D2818] border border-[#2D6A4F] text-[#D8F3DC] flex items-start gap-3.5 animate-slide-down">
+        <div className="mb-8 p-5 rounded-xl bg-[#0D2818] border border-[#2D6A4F] text-[#D8F3DC] flex items-start gap-3.5 animate-slide-down shadow-lg shadow-emerald-950/30">
           <CheckCircle2 className="w-5 h-5 text-[#52B788] flex-shrink-0 mt-0.5" />
           <div>
             <h4 className="font-semibold text-sm text-[#74C69D]">Thank You! Profile Registered Successfully</h4>
             <p className="text-xs text-[#B7E4C7] mt-1">
-              Your profile has been received. Our community network will connect with you when matching client inquiries arrive.
+              Your details have been recorded. Our network will connect with you when matching client inquiries arrive.
             </p>
           </div>
         </div>
       )}
 
-      {/* Error Notification */}
+      {/* Error Notification Banner */}
       {errorMsg && (
-        <div className="mb-8 p-4 rounded-xl bg-[#2A0F13] border border-[#EF4444] text-[#FCA5A5] flex items-center gap-3 animate-slide-down shadow-lg shadow-red-950/40">
+        <div className="mb-8 p-4 rounded-xl bg-[#2A0F13] border border-[#EF4444] text-[#FCA5A5] flex items-center gap-3 animate-slide-down shadow-lg shadow-red-950/50">
           <AlertCircle className="w-5 h-5 text-[#EF4444] flex-shrink-0" />
           <span className="text-xs sm:text-sm font-medium">{errorMsg}</span>
         </div>
@@ -213,48 +228,68 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
           />
         </div>
 
-        {/* Row 6: Social Handles / Portfolio Link (NEW FIELD) */}
+        {/* Row 6: Social Handles / Portfolio Links */}
         <div className="space-y-2">
           <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Social Handles & Portfolio Links <span className="text-[#94A3B8] font-normal">(Instagram, LinkedIn, Website)</span>
           </label>
-          <div className="relative">
-            <input
-              type="text"
-              name="socialHandles"
-              value={formData.socialHandles}
-              onChange={handleChange}
-              placeholder="e.g. instagram.com/sarah_interiors, linkedin.com/in/sarahdesign"
-              className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
-            />
-          </div>
-          <p className="text-[11px] text-[#94A3B8]">
-            Format: Include your Instagram profile, Behance, LinkedIn, or portfolio website URL.
-          </p>
+          <input
+            type="text"
+            name="socialHandles"
+            value={formData.socialHandles}
+            onChange={handleChange}
+            placeholder="e.g. instagram.com/sarah_interiors, linkedin.com/in/sarahdesign"
+            className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
+          />
         </div>
 
-        {/* Row 7: Detailed Professional Overview (NO MINIMUM WORD CONSTRAINT) */}
+        {/* Row 7: Detailed Overview (WITH 80 WORDS MINIMUM CONSTRAINT) */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
-            Professional Experience & Overview <span className="text-[#EF4444]">*</span>
-          </label>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
+              Professional Overview & Experience <span className="text-[#EF4444]">* (80 Words Minimum)</span>
+            </label>
+
+            {/* Live Word Count Counter Badge */}
+            <span
+              className={`text-xs px-2.5 py-1 rounded-full font-mono font-semibold flex items-center gap-1.5 transition-colors ${
+                isWordCountValid
+                  ? 'bg-[#0D2818] text-[#52B788] border border-[#2D6A4F]'
+                  : 'bg-[#2A170F] text-[#F97316] border border-[#EA580C]/40'
+              }`}
+            >
+              {isWordCountValid ? <Check className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+              <span>{currentWordCount} / 80 words min</span>
+            </span>
+          </div>
+
           <textarea
             name="description"
-            rows={5}
+            rows={7}
             value={formData.description}
             onChange={handleChange}
-            placeholder="Describe your design practice, years of experience, design specializations (residential, commercial, luxury villas), notable projects, and preferred client working terms..."
+            placeholder="Describe your design background in detail (minimum 80 words). Include your total years of experience, design specializations (residential, commercial, luxury villas), past notable projects, portfolio website / Instagram links, preferred materials, and client working terms..."
             className={`w-full px-4 py-3.5 rounded-xl luxury-input text-sm resize-y leading-relaxed font-normal ${
               touchedErrors.description ? 'luxury-input-error' : ''
             }`}
           />
+
+          {!isWordCountValid && (
+            <p className="text-[11px] text-[#F97316] flex items-center gap-1.5 mt-1 font-medium">
+              <span>⚠ Minimum 80 words constraint required ({80 - currentWordCount} more words needed).</span>
+            </p>
+          )}
         </div>
 
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading}
-          className="w-full py-4 px-6 rounded-xl btn-silver font-semibold text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-3"
+          disabled={loading || !isWordCountValid}
+          className={`w-full py-4 px-6 rounded-xl font-semibold text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-3 ${
+            isWordCountValid && !loading
+              ? 'btn-silver shadow-lg shadow-[#E2E8F0]/20 hover:scale-[1.01]'
+              : 'bg-[#1C2838] text-[#94A3B8] cursor-not-allowed border border-[#94A3B8]/20'
+          }`}
         >
           {loading ? (
             <>

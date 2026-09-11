@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveSubmission, SubmissionData } from '@/lib/excel';
+import { saveSubmission, SubmissionData, countWords } from '@/lib/excel';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,6 +16,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const descriptionText = body.description.trim();
+    const wordCount = countWords(descriptionText);
+
+    // 80 Words Minimum Constraint Validation
+    if (wordCount < 80) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Minimum 80 words required. You currently provided ${wordCount} words (${80 - wordCount} more words needed).` 
+        },
+        { status: 400 }
+      );
+    }
+
     const newSubmission: SubmissionData = {
       id: 'YID-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
       timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
@@ -26,7 +40,8 @@ export async function POST(req: NextRequest) {
       location: body.location.trim(),
       budget: body.budget.trim(),
       socialHandles: body.socialHandles ? body.socialHandles.trim() : '',
-      description: body.description.trim(),
+      description: descriptionText,
+      wordCount: wordCount,
     };
 
     saveSubmission(newSubmission);
