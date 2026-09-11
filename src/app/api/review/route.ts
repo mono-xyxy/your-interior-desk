@@ -5,14 +5,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const requiredFields = ['name', 'email', 'reviewText'];
-    for (const field of requiredFields) {
-      if (!body[field] || body[field].toString().trim() === '') {
-        return NextResponse.json(
-          { success: false, error: `Please complete all required fields (${field}).` },
-          { status: 400 }
-        );
-      }
+    if (!body.reviewText || body.reviewText.toString().trim() === '') {
+      return NextResponse.json(
+        { success: false, error: 'Please enter your review experience description.' },
+        { status: 400 }
+      );
     }
 
     const reviewText = body.reviewText.trim();
@@ -29,8 +26,8 @@ export async function POST(req: NextRequest) {
     const newReview: ReviewData = {
       id: 'REV-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
       timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-      name: body.name.trim(),
-      email: body.email.trim(),
+      name: body.name ? body.name.trim() : 'Anonymous',
+      email: body.email ? body.email.trim() : 'N/A',
       role: body.role || 'Client',
       ratingScore: Number(ratingScore),
       ratingKeyword: ratingKeyword,

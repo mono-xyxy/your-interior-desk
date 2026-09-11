@@ -10,8 +10,6 @@ interface ReviewFormProps {
 
 export default function ReviewForm({ onSuccess }: ReviewFormProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
     role: 'Client',
     reviewText: '',
   });
@@ -28,7 +26,7 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
-    // Auto-update emoji if user hasn't explicitly locked it and keywords are matched
+    // Auto-update emoji if keywords are matched
     if (name === 'reviewText' && value.trim().length > 3) {
       const detected = analyzeReviewSentiment(value);
       const matchedCat = EMOJI_SENTIMENT_MAP.find(c => c.keyword === detected.ratingKeyword);
@@ -42,8 +40,8 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
     e.preventDefault();
     setErrorMsg('');
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.reviewText.trim()) {
-      setErrorMsg('Please fill in your name, email, and review feedback before submitting.');
+    if (!formData.reviewText.trim()) {
+      setErrorMsg('Please enter your review description before submitting.');
       return;
     }
 
@@ -54,7 +52,10 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          name: 'Anonymous',
+          email: 'N/A',
+          role: formData.role,
+          reviewText: formData.reviewText,
           ratingScore: selectedEmoji.score,
           ratingKeyword: selectedEmoji.keyword,
           emoji: selectedEmoji.emoji,
@@ -66,8 +67,6 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
       if (data.success) {
         setSubmitted(true);
         setFormData({
-          name: '',
-          email: '',
           role: 'Client',
           reviewText: '',
         });
@@ -92,10 +91,10 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
       {/* Title */}
       <div className="mb-8 pb-4 border-b border-[#E2E8F0]/20">
         <h2 className="font-heading text-2xl sm:text-3xl font-bold text-[#F8FAFC]">
-          Submit Service Review & Experience
+          Submit Feedback & Review
         </h2>
         <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
-          Share your feedback on designers and clients. Emojis and sentiment keywords are automatically matched and stored in the database.
+          Select your role and provide your experience description. Emojis and sentiment keywords are automatically matched and stored in the database.
         </p>
       </div>
 
@@ -121,40 +120,10 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Full Name */}
-        <div className="space-y-2">
-          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
-            Full Name <span className="text-[#EF4444]">*</span>
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="e.g. Sarah Miller"
-            className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
-          />
-        </div>
-
-        {/* Email Address */}
-        <div className="space-y-2">
-          <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
-            Email Address <span className="text-[#EF4444]">*</span>
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="e.g. sarah@example.com"
-            className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
-          />
-        </div>
-
         {/* Role Selection */}
         <div className="space-y-2">
           <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
-            Your Role
+            Your Role <span className="text-[#EF4444]">*</span>
           </label>
           <select
             name="role"
@@ -208,14 +177,14 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
         {/* Review Feedback Textarea */}
         <div className="space-y-2">
           <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
-            Detailed Review & Experience Feedback <span className="text-[#EF4444]">*</span>
+            Detailed Review & Experience Description <span className="text-[#EF4444]">*</span>
           </label>
           <textarea
             name="reviewText"
             rows={5}
             value={formData.reviewText}
             onChange={handleChange}
-            placeholder="Share your detailed feedback (e.g. Excellent luxury design quality, amazing project management, best experience...)"
+            placeholder="Share your detailed experience feedback (e.g. Excellent luxury design quality, amazing project management, best experience...)"
             className="w-full px-4 py-3.5 rounded-xl luxury-input text-sm resize-y leading-relaxed"
           />
         </div>
@@ -242,3 +211,4 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
     </div>
   );
 }
+
