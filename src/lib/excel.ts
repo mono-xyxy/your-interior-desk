@@ -3,6 +3,7 @@ import path from 'path';
 import * as XLSX from 'xlsx';
 
 export const LOCAL_EXCEL_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\Client_Designer.xlsx";
+export const LOCAL_CSV_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\Client_Designer.csv";
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const JSON_FILE_PATH = path.join(DATA_DIR, 'submissions.json');
@@ -16,7 +17,7 @@ export interface SubmissionData {
   phone: string;
   location: string;
   budget: string;
-  description: string; // Detailed 80+ words free text
+  description: string;
   wordCount: number;
 }
 
@@ -39,24 +40,83 @@ export function getSubmissions(): SubmissionData[] {
   }
 }
 
+// CONCURRENCY SAFE QUEUE
+let writeQueue: SubmissionData[] = [];
+let isProcessingQueue = false;
+
 export function saveSubmission(submission: SubmissionData): boolean {
-  // 1. Always record in JSON database (never fails)
   try {
+    // 1. Atomically record submission in JSON
+    ensureJsonStore();
     const current = getSubmissions();
     current.unshift(submission);
     fs.writeFileSync(JSON_FILE_PATH, JSON.stringify(current, null, 2));
-  } catch (err) {
-    console.error('Error writing to JSON store:', err);
+
+    // 2. Write to CSV immediately (CSV files never get locked by Windows/Excel)
+    appendToCsv(submission);
+
+    // 3. Queue for Excel update
+    writeQueue.push(submission);
+    processWriteQueue();
+
+    return true;
+  } catch (error) {
+    console.error('Error saving submission:', error);
+    return false;
+  }
+}
+
+async function processWriteQueue() {
+  if (isProcessingQueue || writeQueue.length === 0) return;
+  isProcessingQueue = true;
+
+  while (writeQueue.length > 0) {
+    writeQueue.shift();
+    try {
+      syncAllSubmissionsToExcel();
+    } catch (err) {
+      console.warn('Excel queue update deferred:', err);
+    }
   }
 
-  // 2. Safely attempt local Excel file auto-update
+  isProcessingQueue = false;
+}
+
+export function appendToCsv(sub: SubmissionData) {
   try {
-    appendToLocalExcel(submission);
-  } catch (err) {
-    console.warn('Excel write deferred:', err);
-  }
+    const csvPath = LOCAL_CSV_PATH;
+    const dir = path.dirname(csvPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
-  return true;
+    const fileExists = fs.existsSync(csvPath);
+    const headers = 'ID,Timestamp,Role,Full Name,Email Address,Phone,Location,Budget (INR),Word Count,Description\n';
+    
+    // Clean text fields for CSV safety
+    const cleanStr = (s: string) => `"${(s || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+    
+    const row = [
+      cleanStr(sub.id),
+      cleanStr(sub.timestamp),
+      cleanStr(sub.role.toUpperCase()),
+      cleanStr(sub.fullName),
+      cleanStr(sub.email),
+      cleanStr(sub.phone),
+      cleanStr(sub.location),
+      cleanStr(sub.budget),
+      sub.wordCount,
+      cleanStr(sub.description)
+    ].join(',') + '\n';
+
+    if (!fileExists) {
+      fs.writeFileSync(csvPath, headers + row, 'utf8');
+    } else {
+      fs.appendFileSync(csvPath, row, 'utf8');
+    }
+  } catch (err) {
+    console.warn('CSV append warning:', err);
+  }
 }
 
 export function autoFitColumns(ws: XLSX.WorkSheet, data: any[]) {
@@ -65,91 +125,70 @@ export function autoFitColumns(ws: XLSX.WorkSheet, data: any[]) {
   const colWidths = colNames.map(col => {
     let maxLen = col.length;
     data.forEach(row => {
-      const val = row[col] ? String(row[col]) : '';
+      const val = row[col] !== undefined && row[col] !== null ? String(row[col]) : '';
       if (val.length > maxLen) {
         maxLen = val.length;
       }
     });
-    return { wch: Math.min(Math.max(maxLen + 4, 15), 60) }; // min 15, max 60 char width
+    return { wch: Math.min(Math.max(maxLen + 4, 16), 65) };
   });
   ws['!cols'] = colWidths;
 }
 
-export function appendToLocalExcel(sub: SubmissionData) {
+export function syncAllSubmissionsToExcel() {
   const primaryPath = LOCAL_EXCEL_PATH;
   const dir = path.dirname(primaryPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  let targetFile = primaryPath;
-  let wb: XLSX.WorkBook;
+  const allSubmissions = getSubmissions();
+  if (allSubmissions.length === 0) return;
 
-  try {
-    if (fs.existsSync(primaryPath)) {
-      wb = XLSX.readFile(primaryPath);
-    } else {
-      wb = XLSX.utils.book_new();
-    }
-  } catch (e) {
-    targetFile = path.join(dir, "Client_Designer_Sync.xlsx");
-    if (fs.existsSync(targetFile)) {
-      wb = XLSX.readFile(targetFile);
-    } else {
-      wb = XLSX.utils.book_new();
-    }
-  }
+  let wb: XLSX.WorkBook = XLSX.utils.book_new();
 
-  if (sub.role === 'designer') {
-    const designerRow = {
-      'Submission ID': sub.id,
-      'Timestamp': sub.timestamp,
-      'Full Name': sub.fullName,
-      'Email Address': sub.email,
-      'Phone / WhatsApp': sub.phone,
-      'Working Location in India': sub.location,
-      'Working Budget Fee (₹)': sub.budget,
-      'Word Count': sub.wordCount,
-      'Professional Description & Portfolio': sub.description
-    };
-    
-    let ws = wb.Sheets['Designers'];
-    let existing: any[] = ws ? XLSX.utils.sheet_to_json(ws) : [];
-    existing.push(designerRow);
-    const newWs = XLSX.utils.json_to_sheet(existing);
-    autoFitColumns(newWs, existing);
-    
-    wb.Sheets['Designers'] = newWs;
-    if (!wb.SheetNames.includes('Designers')) {
-      XLSX.utils.book_append_sheet(wb, newWs, 'Designers');
-    }
-  } else {
-    const clientRow = {
-      'Submission ID': sub.id,
-      'Timestamp': sub.timestamp,
-      'Full Name': sub.fullName,
-      'Email Address': sub.email,
-      'Phone / WhatsApp': sub.phone,
-      'Property Location in India': sub.location,
-      'Offered Budget (₹)': sub.budget,
-      'Word Count': sub.wordCount,
-      'Detailed Scope of Work & Requirements': sub.description
-    };
+  // 1. Designers Sheet
+  const designers = allSubmissions.filter(s => s.role === 'designer');
+  const designerRows = designers.map(sub => ({
+    'Submission ID': sub.id,
+    'Timestamp': sub.timestamp,
+    'Full Name': sub.fullName,
+    'Email Address': sub.email,
+    'Phone / WhatsApp': sub.phone,
+    'Working Location in India': sub.location,
+    'Working Budget Fee (₹)': sub.budget,
+    'Word Count': sub.wordCount,
+    'Professional Overview & Experience': sub.description
+  }));
 
-    let ws = wb.Sheets['Clients'];
-    let existing: any[] = ws ? XLSX.utils.sheet_to_json(ws) : [];
-    existing.push(clientRow);
-    const newWs = XLSX.utils.json_to_sheet(existing);
-    autoFitColumns(newWs, existing);
+  const wsDesigners = XLSX.utils.json_to_sheet(designerRows.length > 0 ? designerRows : [
+    { 'Submission ID': '', 'Timestamp': '', 'Full Name': '', 'Email Address': '', 'Phone / WhatsApp': '', 'Working Location in India': '', 'Working Budget Fee (₹)': '', 'Word Count': '', 'Professional Overview & Experience': '' }
+  ]);
+  if (designerRows.length > 0) autoFitColumns(wsDesigners, designerRows);
+  XLSX.utils.book_append_sheet(wb, wsDesigners, 'Designers');
 
-    wb.Sheets['Clients'] = newWs;
-    if (!wb.SheetNames.includes('Clients')) {
-      XLSX.utils.book_append_sheet(wb, newWs, 'Clients');
-    }
-  }
+  // 2. Clients Sheet
+  const clients = allSubmissions.filter(s => s.role === 'client');
+  const clientRows = clients.map(sub => ({
+    'Submission ID': sub.id,
+    'Timestamp': sub.timestamp,
+    'Full Name': sub.fullName,
+    'Email Address': sub.email,
+    'Phone / WhatsApp': sub.phone,
+    'Property Location in India': sub.location,
+    'Offered Budget (₹)': sub.budget,
+    'Word Count': sub.wordCount,
+    'Detailed Scope of Work & Requirements': sub.description
+  }));
 
-  // Master Log
-  const masterRow = {
+  const wsClients = XLSX.utils.json_to_sheet(clientRows.length > 0 ? clientRows : [
+    { 'Submission ID': '', 'Timestamp': '', 'Full Name': '', 'Email Address': '', 'Phone / WhatsApp': '', 'Property Location in India': '', 'Offered Budget (₹)': '', 'Word Count': '', 'Detailed Scope of Work & Requirements': '' }
+  ]);
+  if (clientRows.length > 0) autoFitColumns(wsClients, clientRows);
+  XLSX.utils.book_append_sheet(wb, wsClients, 'Clients');
+
+  // 3. Master Log Sheet
+  const masterRows = allSubmissions.map(sub => ({
     'ID': sub.id,
     'Timestamp': sub.timestamp,
     'Role': sub.role.toUpperCase(),
@@ -160,18 +199,18 @@ export function appendToLocalExcel(sub: SubmissionData) {
     'Budget (₹)': sub.budget,
     'Word Count': sub.wordCount,
     'Description': sub.description
-  };
+  }));
 
-  let wsMaster = wb.Sheets['All_Submissions'];
-  let existingMaster: any[] = wsMaster ? XLSX.utils.sheet_to_json(wsMaster) : [];
-  existingMaster.push(masterRow);
-  const newMasterWs = XLSX.utils.json_to_sheet(existingMaster);
-  autoFitColumns(newMasterWs, existingMaster);
+  const wsMaster = XLSX.utils.json_to_sheet(masterRows);
+  autoFitColumns(wsMaster, masterRows);
+  XLSX.utils.book_append_sheet(wb, wsMaster, 'All_Submissions');
 
-  wb.Sheets['All_Submissions'] = newMasterWs;
-  if (!wb.SheetNames.includes('All_Submissions')) {
-    XLSX.utils.book_append_sheet(wb, newMasterWs, 'All_Submissions');
+  // Attempt writing to main file
+  try {
+    XLSX.writeFile(wb, primaryPath);
+  } catch (err) {
+    // Backup Excel if MS Excel holds a lock
+    const fallbackPath = path.join(dir, "Client_Designer_Backup.xlsx");
+    XLSX.writeFile(wb, fallbackPath);
   }
-
-  XLSX.writeFile(wb, targetFile);
 }
