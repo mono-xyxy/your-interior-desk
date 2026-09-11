@@ -1,69 +1,98 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import ArchitecturalBackground from '@/components/ArchitecturalBackground';
+import Header from '@/components/Header';
+import RoleSelector from '@/components/RoleSelector';
+import DesignerForm from '@/components/DesignerForm';
+import ClientForm from '@/components/ClientForm';
+import AdminModal from '@/components/AdminModal';
+import { Database, FileSpreadsheet, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export default function Home() {
+  const [activeRole, setActiveRole] = useState<'designer' | 'client'>('designer');
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [submissionsCount, setSubmissionsCount] = useState(0);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/submissions');
+      const data = await res.json();
+      if (data.success) {
+        setSubmissionsCount(data.total || 0);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen relative flex flex-col justify-between selection:bg-[#D4AF37] selection:text-[#070D18]">
+      {/* Background visual art */}
+      <ArchitecturalBackground />
+
+      <main className="relative z-10 pb-16">
+        {/* Main Brand Header */}
+        <Header
+          onOpenAdmin={() => setIsAdminOpen(true)}
+          submissionsCount={submissionsCount}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+
+        {/* Role Switcher Tabs */}
+        <RoleSelector
+          activeRole={activeRole}
+          onChangeRole={(role) => setActiveRole(role)}
+        />
+
+        {/* Dynamic Form Area */}
+        <section className="max-w-3xl mx-auto px-4 my-6">
+          {activeRole === 'designer' ? (
+            <DesignerForm onSuccess={fetchStats} />
+          ) : (
+            <ClientForm onSuccess={fetchStats} />
+          )}
+        </section>
+
+        {/* Database & Vercel Auto-Sync Info Banner */}
+        <section className="max-w-3xl mx-auto px-4 mt-8">
+          <div className="p-4 rounded-xl bg-[#0E1726]/80 border border-[#D4AF37]/20 text-xs text-[#8E9EAF] flex items-center justify-between flex-wrap gap-3 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
+              <span>
+                Auto-saves to <code className="text-[#D4AF37] font-mono bg-[#070D18] px-1.5 py-0.5 rounded">C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\Client_Designer.xlsx</code>
+              </span>
+            </div>
+
+            <button
+              onClick={() => setIsAdminOpen(true)}
+              className="text-[#D4AF37] hover:underline font-semibold flex items-center gap-1"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>View & Download Excel DB</span>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 py-6 border-t border-[#D4AF37]/20 text-center text-xs text-[#8E9EAF] bg-[#070D18]/90 backdrop-blur-md">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>© {new Date().getFullYear()} YourInteriorDesk. All rights reserved.</p>
+          <p className="font-serif-luxury text-sm text-[#C5A059] tracking-wider">
+            PROPORTION • LIGHTING • MATERIAL CONSISTENCY
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </footer>
+
+      {/* Admin Database Modal */}
+      <AdminModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+      />
     </div>
   );
 }
