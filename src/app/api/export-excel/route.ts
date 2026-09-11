@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 
 export async function GET() {
   try {
-    const submissions = getSubmissions();
+    const submissions = await getSubmissions();
     const wb = XLSX.utils.book_new();
 
     // Designers Sheet

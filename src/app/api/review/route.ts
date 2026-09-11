@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { saveReview, ReviewData, analyzeReviewSentiment, countWords } from '@/lib/excel';
 
 export async function POST(req: NextRequest) {

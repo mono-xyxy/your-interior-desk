@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { saveSubmission, SubmissionData, countWords } from '@/lib/excel';
 
 export async function POST(req: NextRequest) {
@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     for (const field of requiredFields) {
       if (!body[field] || body[field].toString().trim() === '') {
         return NextResponse.json(
-          { success: false, error: Please complete all required fields (). },
+          { success: false, error: `Please complete all required fields (${field}).` },
           { status: 400 }
         );
       }
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: Minimum 80 words required. You currently provided  words ( more words needed).
+          error: `Minimum 80 words required. You currently provided ${wordCount} words (${80 - wordCount} more words needed).`
         },
         { status: 400 }
       );
