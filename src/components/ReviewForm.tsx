@@ -94,7 +94,7 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
           Submit Feedback & Review
         </h2>
         <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
-          Select your role and provide your experience description. Emojis and sentiment keywords are automatically matched and stored in the database.
+          Select your role and share your detailed experience feedback. Your rating emoji is automatically matched as you type.
         </p>
       </div>
 
@@ -105,7 +105,7 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
           <div>
             <h4 className="font-semibold text-sm text-[#74C69D]">Thank You! Review Recorded Successfully</h4>
             <p className="text-xs text-[#B7E4C7] mt-1">
-              Your feedback with matched emoji rating has been saved to the database and sync workbook.
+              Thank you for sharing your experience feedback!
             </p>
           </div>
         </div>
@@ -166,7 +166,7 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
           <div className="p-3 rounded-xl bg-[#18263D] border border-[#E2E8F0]/20 flex items-center justify-between text-xs text-[#CBD5E1]">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-[#52B788]" />
-              <span>Matched Sentiment Keyword: <strong className="text-[#F8FAFC]">{sentiment.ratingKeyword} {sentiment.emoji}</strong></span>
+              <span>Matched Sentiment: <strong className="text-[#F8FAFC]">{sentiment.ratingKeyword} {sentiment.emoji}</strong></span>
             </div>
             <span className="text-[11px] text-[#94A3B8] font-mono">
               Matches: {sentiment.matchedKeywords.join(', ')}
@@ -203,7 +203,7 @@ export default function ReviewForm({ onSuccess }: ReviewFormProps) {
           ) : (
             <>
               <Send className="w-4 h-4" />
-              <span>Submit Review & Store in DB</span>
+              <span>Submit Review</span>
             </>
           )}
         </button>
