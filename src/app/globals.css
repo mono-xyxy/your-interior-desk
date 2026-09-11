@@ -2,16 +2,16 @@
 @import "tailwindcss";
 
 :root {
-  --bg-deep: #070D18;
-  --bg-surface: #0E1726;
-  --bg-card: rgba(16, 26, 42, 0.75);
-  --gold-primary: #D4AF37;
-  --gold-accent: #C5A059;
-  --gold-light: #F3E5AB;
-  --gold-glow: rgba(212, 175, 55, 0.25);
-  --steel-blue: #23344C;
-  --cream-white: #F8F6F0;
-  --slate-muted: #8E9EAF;
+  --bg-deep: #0B1422;
+  --bg-surface: #111C2E;
+  --bg-card: rgba(17, 28, 46, 0.85);
+  --silver-primary: #E2E8F0;
+  --silver-accent: #C0C7D0;
+  --silver-light: #F8FAFC;
+  --steel-border: rgba(226, 232, 240, 0.2);
+  --steel-blue: #1E2E48;
+  --cream-white: #F8FAFC;
+  --slate-muted: #94A3B8;
 }
 
 body {
@@ -30,79 +30,71 @@ body {
   font-family: 'Outfit', system-ui, sans-serif;
 }
 
-/* Custom Luxury Scrollbar */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #080F1B;
+  background: #0B1422;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1C2B40;
+  background: #1E2E48;
   border-radius: 4px;
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  border: 1px solid rgba(226, 232, 240, 0.3);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #C5A059;
+  background: #C0C7D0;
 }
 
-/* Glassmorphism Luxury Styling */
+/* Glassmorphism Luxury Steel Navy & Silver Styling */
 .glass-panel {
-  background: rgba(14, 23, 38, 0.75);
+  background: rgba(17, 28, 46, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(243, 229, 171, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.2);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.glass-panel-glow {
-  box-shadow: 0 0 35px rgba(212, 175, 55, 0.15), inset 0 0 15px rgba(212, 175, 55, 0.05);
-}
-
-/* Gold Gradient Text */
-.text-gold-gradient {
-  background: linear-gradient(135deg, #FFF6D6 0%, #D4AF37 50%, #A37E26 100%);
+/* Silver Gradient Text */
+.text-silver-gradient {
+  background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #94A3B8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.border-gold-gradient {
-  border-image: linear-gradient(135deg, #D4AF37, rgba(197, 160, 89, 0.3), #D4AF37) 1;
-}
-
-/* Metallic Gold Button */
-.btn-gold {
-  background: linear-gradient(135deg, #C5A059 0%, #D4AF37 50%, #9B7829 100%);
-  color: #070D18;
+/* Brushed Metallic Silver Button */
+.btn-silver {
+  background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 50%, #CBD5E1 100%);
+  color: #0B1422;
   font-weight: 600;
   letter-spacing: 0.05em;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.25);
+  box-shadow: 0 4px 20px rgba(226, 232, 240, 0.2);
 }
-.btn-gold:hover {
-  background: linear-gradient(135deg, #D4AF37 0%, #E6C687 50%, #C5A059 100%);
-  box-shadow: 0 6px 30px rgba(212, 175, 55, 0.45);
+.btn-silver:hover {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F1F5F9 50%, #E2E8F0 100%);
+  box-shadow: 0 6px 30px rgba(226, 232, 240, 0.35);
   transform: translateY(-2px);
 }
 
-/* Luxury Input Field */
+/* Input Field */
 .luxury-input {
-  background: rgba(8, 15, 27, 0.8);
-  border: 1px solid rgba(142, 158, 175, 0.25);
-  color: #F8F6F0;
+  background: rgba(11, 20, 34, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: #F8FAFC;
   transition: all 0.3s ease;
 }
 .luxury-input:focus {
   outline: none;
-  border-color: #D4AF37;
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.25);
-  background: rgba(14, 23, 38, 0.95);
+  border-color: #E2E8F0;
+  box-shadow: 0 0 15px rgba(226, 232, 240, 0.2);
+  background: rgba(17, 28, 46, 0.95);
 }
 
-/* Grid & Wireframe background pattern */
+/* Architectural Grid */
 .architectural-grid {
   background-size: 40px 40px;
   background-image: 
-    linear-gradient(to right, rgba(142, 158, 175, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(142, 158, 175, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
 }

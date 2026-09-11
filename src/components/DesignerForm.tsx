@@ -58,7 +58,6 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
 
       if (data.success) {
         setSubmitted(true);
-        // Automatically reset form for next designer
         setFormData({
           fullName: '',
           email: '',
@@ -82,15 +81,15 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
   return (
     <div className="glass-panel rounded-2xl p-6 sm:p-10 relative overflow-hidden shadow-2xl">
       {/* Top accent line */}
-      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#E2E8F0] to-transparent" />
 
       {/* Form Title */}
-      <div className="mb-8 pb-4 border-b border-[#D4AF37]/20">
-        <h2 className="font-serif-luxury text-2xl sm:text-3xl font-bold text-[#F8F6F0]">
+      <div className="mb-8 pb-4 border-b border-[#E2E8F0]/20">
+        <h2 className="font-serif-luxury text-2xl sm:text-3xl font-bold text-[#F8FAFC]">
           Designer Registration
         </h2>
-        <p className="text-xs sm:text-sm text-[#8E9EAF] mt-1">
-          Share your experience, location, and preferred project fees to connect with clients seeking interior design services across India.
+        <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
+          Share your professional design practice, location, working fee structure, and portfolio details.
         </p>
       </div>
 
@@ -117,7 +116,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Row 1: Full Name */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Full Name <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -126,14 +125,14 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
             required
             value={formData.fullName}
             onChange={handleChange}
-            placeholder="Enter your complete full name (e.g. Veda R)"
+            placeholder="e.g. Sarah Miller"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
 
         {/* Row 2: Email Address */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Email Address <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -142,14 +141,14 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
             required
             value={formData.email}
             onChange={handleChange}
-            placeholder="Enter your email address (e.g. veda@designstudio.in)"
+            placeholder="e.g. sarah@designstudio.in"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
 
         {/* Row 3: Phone / WhatsApp Number */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Phone / WhatsApp Number <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -158,14 +157,14 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
             required
             value={formData.phone}
             onChange={handleChange}
-            placeholder="Enter your contact phone number (e.g. +91 90353 33300)"
+            placeholder="e.g. +91 98765 43210"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
 
         {/* Row 4: Primary Working Location in India */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Primary Working Location & Cities in India <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -174,14 +173,14 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
             required
             value={formData.location}
             onChange={handleChange}
-            placeholder="Enter your base city and operational regions (e.g. Bangalore, Mumbai, Delhi NCR)"
+            placeholder="e.g. Bangalore, Mumbai, Delhi NCR"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
 
         {/* Row 5: Expected Working Budget & Fee Range */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Expected Working Budget & Project Fee Range (₹) <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -190,7 +189,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
             required
             value={formData.budget}
             onChange={handleChange}
-            placeholder="Enter your typical project budget (e.g. ₹5 Lakhs - ₹15 Lakhs for 3BHK turnkey interior)"
+            placeholder="e.g. ₹5 Lakhs - ₹15 Lakhs for 3BHK turnkey interior"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
@@ -198,7 +197,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
         {/* Row 6: Detailed Professional Overview */}
         <div className="space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
               Professional Experience & Portfolio Description <span className="text-[#FF4D6D]">*</span>
             </label>
 
@@ -232,19 +231,19 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
           )}
         </div>
 
-        {/* Submit Button with Warm Non-Technical Language */}
+        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading || !isWordCountValid}
           className={`w-full py-4 px-6 rounded-xl font-semibold text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-3 ${
             isWordCountValid && !loading
-              ? 'btn-gold shadow-lg shadow-[#D4AF37]/25 hover:scale-[1.01]'
-              : 'bg-[#1C2838] text-[#8E9EAF] cursor-not-allowed border border-[#8E9EAF]/20'
+              ? 'btn-silver shadow-lg shadow-[#E2E8F0]/20 hover:scale-[1.01]'
+              : 'bg-[#1C2838] text-[#94A3B8] cursor-not-allowed border border-[#94A3B8]/20'
           }`}
         >
           {loading ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin text-[#070D18]" />
+              <Loader2 className="w-5 h-5 animate-spin text-[#0B1422]" />
               <span>Sending Profile Details...</span>
             </>
           ) : (

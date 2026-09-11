@@ -58,7 +58,6 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
 
       if (data.success) {
         setSubmitted(true);
-        // Reset form for next submission
         setFormData({
           fullName: '',
           email: '',
@@ -82,14 +81,14 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
   return (
     <div className="glass-panel rounded-2xl p-6 sm:p-10 relative overflow-hidden shadow-2xl">
       {/* Top accent line */}
-      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#E2E8F0] to-transparent" />
 
       {/* Form Title */}
-      <div className="mb-8 pb-4 border-b border-[#D4AF37]/20">
-        <h2 className="font-serif-luxury text-2xl sm:text-3xl font-bold text-[#F8F6F0]">
+      <div className="mb-8 pb-4 border-b border-[#E2E8F0]/20">
+        <h2 className="font-serif-luxury text-2xl sm:text-3xl font-bold text-[#F8FAFC]">
           Client Project Requirement Form
         </h2>
-        <p className="text-xs sm:text-sm text-[#8E9EAF] mt-1">
+        <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
           Specify your property details, location, interior budget, and room requirements to connect with verified interior designers in India.
         </p>
       </div>
@@ -117,7 +116,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Row 1: Client Full Name */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Client Full Name <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -126,14 +125,14 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
             required
             value={formData.fullName}
             onChange={handleChange}
-            placeholder="Enter your complete full name (e.g. Rohan Veda)"
+            placeholder="e.g. James Smith"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
 
         {/* Row 2: Email Address */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Email Address <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -142,14 +141,14 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
             required
             value={formData.email}
             onChange={handleChange}
-            placeholder="Enter your email address (e.g. rohan@example.com)"
+            placeholder="e.g. james@example.com"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
 
         {/* Row 3: Phone / WhatsApp Number */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Phone / WhatsApp Number <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -158,14 +157,14 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
             required
             value={formData.phone}
             onChange={handleChange}
-            placeholder="Enter your contact phone number (e.g. +91 90353 33300)"
+            placeholder="e.g. +91 98765 43210"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
 
         {/* Row 4: Property Location in India */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Property Location (City / Area in India) <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -174,14 +173,14 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
             required
             value={formData.location}
             onChange={handleChange}
-            placeholder="Enter property location (e.g. Whitefield, Bangalore or Bandra West, Mumbai)"
+            placeholder="e.g. Whitefield, Bangalore or Bandra West, Mumbai"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
 
         {/* Row 5: Offered Budget for Interior Design */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
             Offered Budget for Interior Design (₹) <span className="text-[#FF4D6D]">*</span>
           </label>
           <input
@@ -190,7 +189,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
             required
             value={formData.budget}
             onChange={handleChange}
-            placeholder="Enter your total budget (e.g. ₹8 Lakhs - ₹12 Lakhs total budget)"
+            placeholder="e.g. ₹8 Lakhs - ₹12 Lakhs total budget"
             className="w-full px-4 py-3 rounded-xl luxury-input text-sm"
           />
         </div>
@@ -198,7 +197,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
         {/* Row 6: Detailed Scope & Property Requirements */}
         <div className="space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5A059]">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#CBD5E1]">
               Detailed Scope of Work & Property Description <span className="text-[#FF4D6D]">*</span>
             </label>
 
@@ -232,19 +231,19 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
           )}
         </div>
 
-        {/* Submit Button with Warm Non-Technical Language */}
+        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading || !isWordCountValid}
           className={`w-full py-4 px-6 rounded-xl font-semibold text-sm tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-3 ${
             isWordCountValid && !loading
-              ? 'btn-gold shadow-lg shadow-[#D4AF37]/25 hover:scale-[1.01]'
-              : 'bg-[#1C2838] text-[#8E9EAF] cursor-not-allowed border border-[#8E9EAF]/20'
+              ? 'btn-silver shadow-lg shadow-[#E2E8F0]/20 hover:scale-[1.01]'
+              : 'bg-[#1C2838] text-[#94A3B8] cursor-not-allowed border border-[#94A3B8]/20'
           }`}
         >
           {loading ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin text-[#070D18]" />
+              <Loader2 className="w-5 h-5 animate-spin text-[#0B1422]" />
               <span>Sending Your Request...</span>
             </>
           ) : (
