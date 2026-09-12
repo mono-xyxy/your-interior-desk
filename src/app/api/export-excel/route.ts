@@ -9,8 +9,8 @@ export async function GET() {
 
     // Designers Sheet
     const designersData = submissions
-      .filter(s => s.role === 'designer')
-      .map(s => ({
+      .filter((s) => s.role === 'designer')
+      .map((s) => ({
         'Submission ID': s.id,
         'Timestamp': s.timestamp,
         'Full Name': s.fullName,
@@ -18,8 +18,10 @@ export async function GET() {
         'Phone / WhatsApp': s.phone,
         'Working Location in India': s.location,
         'Working Budget Fee (₹)': s.budget,
+        'Signed Status': s.signedStatus || 'signed',
+        'Signature Name': s.signatureFullName || '',
         'Social Handles / Links': s.socialHandles || '',
-        'Professional Description & Overview': s.description
+        'Professional Description & Overview': s.description,
       }));
 
     const wsDesigners = XLSX.utils.json_to_sheet(designersData);
@@ -27,8 +29,8 @@ export async function GET() {
 
     // Clients Sheet
     const clientsData = submissions
-      .filter(s => s.role === 'client')
-      .map(s => ({
+      .filter((s) => s.role === 'client')
+      .map((s) => ({
         'Submission ID': s.id,
         'Timestamp': s.timestamp,
         'Full Name': s.fullName,
@@ -36,14 +38,16 @@ export async function GET() {
         'Phone / WhatsApp': s.phone,
         'Property Location in India': s.location,
         'Offered Budget (₹)': s.budget,
-        'Detailed Scope of Work & Requirements': s.description
+        'Signed Status': s.signedStatus || 'signed',
+        'Signature Name': s.signatureFullName || '',
+        'Detailed Scope of Work & Requirements': s.description,
       }));
 
     const wsClients = XLSX.utils.json_to_sheet(clientsData);
     XLSX.utils.book_append_sheet(wb, wsClients, 'Clients');
 
     // Master Sheet
-    const masterData = submissions.map(s => ({
+    const masterData = submissions.map((s) => ({
       'ID': s.id,
       'Timestamp': s.timestamp,
       'Role': s.role.toUpperCase(),
@@ -52,8 +56,10 @@ export async function GET() {
       'Phone': s.phone,
       'Location': s.location,
       'Budget (₹)': s.budget,
+      'Signed Status': s.signedStatus || 'signed',
+      'Signature Name': s.signatureFullName || '',
       'Social Handles': s.socialHandles || '',
-      'Description': s.description
+      'Description': s.description,
     }));
 
     const wsMaster = XLSX.utils.json_to_sheet(masterData);

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Send, CheckCircle2, AlertCircle, Loader2, FileText, Check } from 'lucide-react';
+import SignatureAndTerms from './SignatureAndTerms';
 
 interface ClientFormProps {
   onSuccess: () => void;
@@ -15,6 +16,10 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
     location: '',
     budget: '',
     description: '',
+    signatureFullName: '',
+    signatureFileName: '',
+    signatureData: '',
+    termsAccepted: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -24,7 +29,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
 
   const countWords = (str: string) => {
     if (!str || !str.trim()) return 0;
-    return str.trim().split(/\s+/).filter(w => w.length > 0).length;
+    return str.trim().split(/\s+/).filter((w) => w.length > 0).length;
   };
 
   const currentWordCount = countWords(formData.description);
@@ -37,17 +42,38 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
     }
   };
 
+  const handleSignatureFullNameChange = (name: string) => {
+    setFormData((prev) => ({ ...prev, signatureFullName: name }));
+    if (touchedErrors.signatureFullName) {
+      setTouchedErrors((prev) => ({ ...prev, signatureFullName: false }));
+    }
+  };
+
+  const handleSignatureChange = (dataUrl: string, fileName: string) => {
+    setFormData((prev) => ({ ...prev, signatureData: dataUrl, signatureFileName: fileName }));
+    if (touchedErrors.signatureFile) {
+      setTouchedErrors((prev) => ({ ...prev, signatureFile: false }));
+    }
+  };
+
+  const handleTermsChange = (accepted: boolean) => {
+    setFormData((prev) => ({ ...prev, termsAccepted: accepted }));
+    if (touchedErrors.termsAccepted) {
+      setTouchedErrors((prev) => ({ ...prev, termsAccepted: false }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
-    // Check required fields
+    // Check required basic fields
     const required = ['fullName', 'email', 'phone', 'location', 'budget', 'description'];
     const newErrors: { [key: string]: boolean } = {};
     let hasError = false;
 
     for (const key of required) {
-      if (!formData[key as keyof typeof formData].trim()) {
+      if (!formData[key as keyof typeof formData]?.toString().trim()) {
         newErrors[key] = true;
         hasError = true;
       }
@@ -57,12 +83,29 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
       newErrors.description = true;
       hasError = true;
       setErrorMsg(`Please provide at least 80 words describing your project scope. (${currentWordCount} words entered)`);
-    } else if (hasError) {
-      setErrorMsg('Please complete all required fields before submitting your project request.');
+    }
+
+    // Validate Signature and Terms
+    if (!formData.signatureFullName.trim()) {
+      newErrors.signatureFullName = true;
+      hasError = true;
+    }
+
+    if (!formData.signatureData) {
+      newErrors.signatureFile = true;
+      hasError = true;
+    }
+
+    if (!formData.termsAccepted) {
+      newErrors.termsAccepted = true;
+      hasError = true;
     }
 
     if (hasError) {
       setTouchedErrors(newErrors);
+      if (isWordCountValid) {
+        setErrorMsg('Please complete all required fields, provide your signature, and accept the terms.');
+      }
       return;
     }
 
@@ -74,7 +117,16 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role: 'client',
-          ...formData,
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          location: formData.location,
+          budget: formData.budget,
+          description: formData.description,
+          signatureFullName: formData.signatureFullName,
+          signatureFileName: formData.signatureFileName,
+          signatureData: formData.signatureData,
+          termsAccepted: formData.termsAccepted,
         }),
       });
 
@@ -89,6 +141,10 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
           location: '',
           budget: '',
           description: '',
+          signatureFullName: '',
+          signatureFileName: '',
+          signatureData: '',
+          termsAccepted: false,
         });
         setTouchedErrors({});
         onSuccess();
@@ -96,7 +152,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
       } else {
         setErrorMsg(data.error || 'Unable to send request. Please check your inputs.');
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Network connection issue. Please check your connection and try again.');
     } finally {
       setLoading(false);
@@ -123,9 +179,9 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
         <div className="mb-8 p-5 rounded-xl bg-[#0D2818] border border-[#2D6A4F] text-[#D8F3DC] flex items-start gap-3.5 animate-slide-down shadow-lg shadow-emerald-950/30">
           <CheckCircle2 className="w-5 h-5 text-[#52B788] flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-semibold text-sm text-[#74C69D]">Thank You! Project Inquiry Sent Successfully</h4>
+            <h4 className="font-semibold text-sm text-[#74C69D]">Thank You! Project Inquiry Recorded & Signed</h4>
             <p className="text-xs text-[#B7E4C7] mt-1">
-              Your project details have been recorded. Designers matching your style and budget will reach out to you.
+              Your inquiry and digital signature have been recorded. A copy of the filled form has been saved to your workspace.
             </p>
           </div>
         </div>
@@ -139,7 +195,7 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
         </div>
       )}
 
-      {/* Vertical Alignment (Row-by-Row Layout) */}
+      {/* Form Area */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Row 1: Client Full Name */}
         <div className="space-y-2">
@@ -226,14 +282,14 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
           />
         </div>
 
-        {/* Row 6: Detailed Scope & Property Requirements (Stable height, no shifting) */}
+        {/* Row 6: Detailed Scope & Property Requirements */}
         <div className="space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2 min-h-[28px]">
             <label className="block text-xs sm:text-sm font-medium text-[#CBD5E1]">
               Detailed Scope of Work & Property Description <span className="text-[#EF4444]">*</span>
             </label>
 
-            {/* Stable Word Counter Badge */}
+            {/* Word Counter Badge */}
             <span
               className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-medium flex items-center gap-1.5 transition-colors ${
                 isWordCountValid
@@ -258,6 +314,22 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
           />
         </div>
 
+        {/* Signature & Terms Component */}
+        <SignatureAndTerms
+          signatureFullName={formData.signatureFullName}
+          signatureFileName={formData.signatureFileName}
+          signatureData={formData.signatureData}
+          termsAccepted={formData.termsAccepted}
+          errors={{
+            signatureFullName: touchedErrors.signatureFullName,
+            signatureFile: touchedErrors.signatureFile,
+            termsAccepted: touchedErrors.termsAccepted,
+          }}
+          onFullNameChange={handleSignatureFullNameChange}
+          onSignatureChange={handleSignatureChange}
+          onTermsChange={handleTermsChange}
+        />
+
         {/* Submit Button */}
         <button
           type="submit"
@@ -271,12 +343,12 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
           {loading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin text-[#0B1320]" />
-              <span>Sending Request...</span>
+              <span>Recording & Signing Submission...</span>
             </>
           ) : (
             <>
               <Send className="w-4 h-4" />
-              <span>Request Designer Match</span>
+              <span>Submit & Sign Client Request</span>
             </>
           )}
         </button>
@@ -284,5 +356,3 @@ export default function ClientForm({ onSuccess }: ClientFormProps) {
     </div>
   );
 }
-
-

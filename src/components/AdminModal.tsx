@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Database, FileSpreadsheet, RefreshCw, User, Palette } from 'lucide-react';
+import { X, Database, FileSpreadsheet, RefreshCw, User, Palette, CheckCircle2, FileSignature } from 'lucide-react';
 import { SubmissionData } from '@/lib/excel';
 
 interface AdminModalProps {
@@ -41,7 +41,7 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="glass-panel w-full max-w-5xl max-h-[90vh] rounded-2xl flex flex-col overflow-hidden border border-[#E2E8F0]/30 shadow-2xl">
+      <div className="glass-panel w-full max-w-6xl max-h-[90vh] rounded-2xl flex flex-col overflow-hidden border border-[#E2E8F0]/30 shadow-2xl">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0]/20 bg-[#0B1320]">
           <div className="flex items-center gap-3">
@@ -53,7 +53,7 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
                 Client & Designer Database Intake
               </h3>
               <p className="text-xs text-[#94A3B8]">
-                Local Database Path: <code className="text-[#E2E8F0] font-mono">C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\client_designer.db</code>
+                Local Database: <code className="text-[#E2E8F0] font-mono">C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\client_designer.db</code>
               </p>
             </div>
           </div>
@@ -119,12 +119,13 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
                   <tr className="border-b border-[#E2E8F0]/20 bg-[#0B1320] text-[#CBD5E1] font-semibold uppercase tracking-wider">
                     <th className="p-3">ID</th>
                     <th className="p-3">Role</th>
+                    <th className="p-3">Signed Status</th>
                     <th className="p-3">Name</th>
+                    <th className="p-3">Signature Full Name</th>
                     <th className="p-3">Contact</th>
                     <th className="p-3">Location</th>
                     <th className="p-3">Budget (₹)</th>
-                    <th className="p-3">Social Handles</th>
-                    <th className="p-3">Description</th>
+                    <th className="p-3">Word Count</th>
                     <th className="p-3">Timestamp</th>
                   </tr>
                 </thead>
@@ -144,15 +145,26 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
                           {item.role}
                         </span>
                       </td>
+                      <td className="p-3">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#0D2818] text-[#52B788] border border-[#2D6A4F]">
+                          <CheckCircle2 className="w-3 h-3 text-[#52B788]" />
+                          {item.signedStatus || 'signed'}
+                        </span>
+                      </td>
                       <td className="p-3 font-semibold">{item.fullName}</td>
+                      <td className="p-3 text-[#CBD5E1]">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#E2E8F0]">
+                          <FileSignature className="w-3 h-3 text-[#94A3B8]" />
+                          {item.signatureFullName || item.fullName}
+                        </span>
+                      </td>
                       <td className="p-3 text-[#CBD5E1]">
                         <div>{item.email}</div>
                         <div className="text-[11px] text-[#94A3B8]">{item.phone}</div>
                       </td>
                       <td className="p-3 text-[#CBD5E1]">{item.location}</td>
                       <td className="p-3 text-[#CBD5E1] font-semibold">{item.budget}</td>
-                      <td className="p-3 text-[#CBD5E1] font-mono text-[11px]">{item.socialHandles || '—'}</td>
-                      <td className="p-3 text-[#CBD5E1] max-w-xs truncate">{item.description}</td>
+                      <td className="p-3 text-[#94A3B8] font-mono text-[11px]">{item.wordCount || '—'} words</td>
                       <td className="p-3 text-[11px] text-[#94A3B8] whitespace-nowrap">{item.timestamp}</td>
                     </tr>
                   ))}

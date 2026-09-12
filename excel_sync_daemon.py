@@ -13,6 +13,7 @@ CSV_PATH = r"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB
 # Cloud Vercel Endpoints or Local Server Endpoints
 VERCEL_API = os.environ.get("VERCEL_API_URL", "https://your-interior-desk.vercel.app/api/submissions")
 VERCEL_REVIEWS_API = os.environ.get("VERCEL_REVIEWS_API_URL", "https://your-interior-desk.vercel.app/api/reviews")
+GITHUB_SUBS_API = "https://raw.githubusercontent.com/mono-xyxy/your-interior-desk/main/data/submissions.json"
 LOCAL_API = "http://localhost:3000/api/submissions"
 LOCAL_REVIEWS_API = "http://localhost:3000/api/reviews"
 
@@ -42,7 +43,7 @@ def auto_fit_columns(ws):
             val = str(cell.value or '')
             if len(val) > max_len:
                 max_len = len(val)
-        ws.column_dimensions[col_letter].width = min(max(max_len + 6, 22), 70)
+        ws.column_dimensions[col_letter].width = min(max(max_len + 6, 20), 70)
 
 def apply_beautification(ws):
     ws.row_dimensions[1].height = 26
@@ -59,9 +60,9 @@ def apply_beautification(ws):
             cell.border = thin_border
             cell.font = Font(name='Calibri', size=11, color='0F172A')
             
-            if cell.column in [1, 2, 3, 5, 6, 7, 8]:
+            if cell.column in [1, 2, 3, 5, 6, 7, 8, 10, 11]:
                 cell.alignment = align_center
-            elif cell.column in [9, 10]:
+            elif cell.column in [12]:
                 cell.alignment = align_wrap
             else:
                 cell.alignment = align_left
@@ -69,44 +70,59 @@ def apply_beautification(ws):
     auto_fit_columns(ws)
 
 def fetch_cloud_submissions():
-    for endpoint in [VERCEL_API, LOCAL_API]:
+    merged = {}
+    for endpoint in [VERCEL_API, GITHUB_SUBS_API, LOCAL_API]:
         try:
             res = requests.get(endpoint, timeout=3)
             if res.status_code == 200:
                 data = res.json()
-                subs = data.get("submissions", [])
-                if subs:
-                    return subs
+                if isinstance(data, list):
+                    items = data
+                else:
+                    items = data.get("submissions", [])
+                for item in items:
+                    if isinstance(item, dict) and item.get("id"):
+                        merged[item["id"]] = item
         except Exception:
             pass
-    return []
+    return list(merged.values())
 
 def fetch_cloud_reviews():
+    merged = {}
     for endpoint in [VERCEL_REVIEWS_API, LOCAL_REVIEWS_API]:
         try:
             res = requests.get(endpoint, timeout=3)
             if res.status_code == 200:
                 data = res.json()
-                revs = data.get("reviews", [])
-                if revs:
-                    return revs
+                if isinstance(data, list):
+                    items = data
+                else:
+                    items = data.get("reviews", [])
+                for item in items:
+                    if isinstance(item, dict) and item.get("id"):
+                        merged[item["id"]] = item
         except Exception:
             pass
-    return []
+    return list(merged.values())
 
 def get_all_db_submissions():
     if os.path.exists(DB_PATH):
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=10.0)
             c = conn.cursor()
-            c.execute("SELECT id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, wordCount FROM submissions ORDER BY timestamp ASC")
+            c.execute("""
+                SELECT id, timestamp, role, fullName, email, phone, location, budget, 
+                       socialHandles, description, wordCount, signed_status, signatureFullName 
+                FROM submissions ORDER BY timestamp ASC
+            """)
             rows = c.fetchall()
             conn.close()
             return [
                 {
                     "id": r[0], "timestamp": r[1], "role": r[2], "fullName": r[3],
                     "email": r[4], "phone": r[5], "location": r[6], "budget": r[7],
-                    "socialHandles": r[8], "description": r[9], "wordCount": r[10]
+                    "socialHandles": r[8], "description": r[9], "wordCount": r[10],
+                    "signed_status": r[11] or "signed", "signatureFullName": r[12] or ""
                 } for r in rows
             ]
         except Exception:
@@ -116,7 +132,7 @@ def get_all_db_submissions():
 def get_all_db_reviews():
     if os.path.exists(DB_PATH):
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=10.0)
             c = conn.cursor()
             c.execute("SELECT id, timestamp, name, email, role, ratingScore, ratingKeyword, emoji, reviewText, matchedKeywords, wordCount FROM reviews ORDER BY timestamp ASC")
             rows = c.fetchall()
@@ -136,8 +152,9 @@ def save_to_sqlite(subs, reviews):
     if not os.path.exists(os.path.dirname(DB_PATH)):
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10.0)
         c = conn.cursor()
+        c.execute("PRAGMA busy_timeout = 10000")
         c.execute("""
             CREATE TABLE IF NOT EXISTS submissions (
                 id TEXT PRIMARY KEY,
@@ -151,6 +168,11 @@ def save_to_sqlite(subs, reviews):
                 socialHandles TEXT,
                 description TEXT,
                 wordCount INTEGER,
+                signed_status TEXT DEFAULT 'signed',
+                signatureFullName TEXT,
+                signatureFileName TEXT,
+                signatureFilePath TEXT,
+                termsAccepted INTEGER DEFAULT 1,
                 synced_to_excel INTEGER DEFAULT 0
             )
         """)
@@ -169,21 +191,31 @@ def save_to_sqlite(subs, reviews):
                 wordCount INTEGER
             )
         """)
-        try:
-            c.execute("ALTER TABLE submissions ADD COLUMN socialHandles TEXT")
-        except Exception:
-            pass
+        for col_def in [
+            "ALTER TABLE submissions ADD COLUMN socialHandles TEXT",
+            "ALTER TABLE submissions ADD COLUMN signed_status TEXT DEFAULT 'signed'",
+            "ALTER TABLE submissions ADD COLUMN signatureFullName TEXT",
+            "ALTER TABLE submissions ADD COLUMN signatureFileName TEXT",
+            "ALTER TABLE submissions ADD COLUMN signatureFilePath TEXT",
+            "ALTER TABLE submissions ADD COLUMN termsAccepted INTEGER DEFAULT 1"
+        ]:
+            try:
+                c.execute(col_def)
+            except Exception:
+                pass
 
         for s in subs:
             role_str = "Designer" if s.get("role", "").lower() == "designer" else "Client"
             c.execute("""
                 INSERT OR REPLACE INTO submissions 
-                (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, wordCount, synced_to_excel)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, wordCount, signed_status, signatureFullName, synced_to_excel)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             """, (
                 s.get("id"), s.get("timestamp"), role_str, s.get("fullName"),
                 s.get("email"), s.get("phone"), s.get("location"), s.get("budget"),
-                s.get("socialHandles", ""), s.get("description"), s.get("wordCount", 0)
+                s.get("socialHandles", ""), s.get("description"), s.get("wordCount", 0),
+                s.get("signedStatus") or s.get("signed_status") or "signed",
+                s.get("signatureFullName", "")
             ))
 
         for r in reviews:
@@ -203,11 +235,11 @@ def save_to_sqlite(subs, reviews):
         pass
 
 def sync_1second():
-    # 1. Fetch Cloud API submissions & reviews
+    # 1. Fetch Cloud API & GitHub submissions & reviews
     cloud_subs = fetch_cloud_submissions()
     cloud_revs = fetch_cloud_reviews()
 
-    # 2. Merge Cloud items into local SQLite DB
+    # 2. Save Cloud items into local SQLite DB
     if cloud_subs or cloud_revs:
         save_to_sqlite(cloud_subs, cloud_revs)
 
@@ -225,13 +257,18 @@ def sync_1second():
     try:
         with open(CSV_PATH, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['Submission Id', 'Timestamp', 'Role', 'Full Name', 'Email Address', 'Phone Number', 'Location', 'Budget Range (₹)', 'Social Handles', 'Word Count', 'Project Description'])
+            writer.writerow([
+                'Submission Id', 'Timestamp', 'Role', 'Full Name', 'Email Address', 
+                'Phone Number', 'Location', 'Budget Range (₹)', 'Social Handles', 
+                'Signed Status', 'Signature Name', 'Word Count', 'Project Description'
+            ])
             for s in reversed(subs):
                 role_title = "Designer" if s.get("role", "").lower() == "designer" else "Client"
                 writer.writerow([
                     s.get("id"), s.get("timestamp"), role_title,
                     s.get("fullName"), s.get("email"), s.get("phone"),
                     s.get("location"), s.get("budget"), s.get("socialHandles", ""),
+                    s.get("signed_status", "signed"), s.get("signatureFullName", ""),
                     s.get("wordCount", 0), s.get("description")
                 ])
     except Exception:
@@ -258,15 +295,27 @@ def sync_1second():
         # Sheet 1: Designers
         ws_designers = wb.active
         ws_designers.title = 'Designers'
-        ws_designers.append(['Submission Id', 'Timestamp', 'Full Name', 'Email Address', 'Phone Number', 'Working Location', 'Budget Fee (₹)', 'Word Count', 'Social Handles', 'Professional Overview'])
+        ws_designers.append([
+            'Submission Id', 'Timestamp', 'Full Name', 'Email Address', 'Phone Number', 
+            'Working Location', 'Budget Fee (₹)', 'Signed Status', 'Signature Name', 
+            'Word Count', 'Social Handles', 'Professional Overview'
+        ])
 
         # Sheet 2: Clients
         ws_clients = wb.create_sheet(title='Clients')
-        ws_clients.append(['Submission Id', 'Timestamp', 'Full Name', 'Email Address', 'Phone Number', 'Property Location', 'Offered Budget (₹)', 'Word Count', 'Project Scope'])
+        ws_clients.append([
+            'Submission Id', 'Timestamp', 'Full Name', 'Email Address', 'Phone Number', 
+            'Property Location', 'Offered Budget (₹)', 'Signed Status', 'Signature Name', 
+            'Word Count', 'Project Scope'
+        ])
 
         # Sheet 3: Master Log
         ws_master = wb.create_sheet(title='All Submissions')
-        ws_master.append(['Submission Id', 'Timestamp', 'Role Type', 'Full Name', 'Email Address', 'Phone Number', 'Location', 'Budget Range (₹)', 'Word Count', 'Project Details'])
+        ws_master.append([
+            'Submission Id', 'Timestamp', 'Role Type', 'Full Name', 'Email Address', 
+            'Phone Number', 'Location', 'Budget Range (₹)', 'Signed Status', 'Signature Name', 
+            'Word Count', 'Project Details'
+        ])
 
         # Sheet 4: Reviews & Feedback
         ws_reviews = wb.create_sheet(title='Reviews')
@@ -283,15 +332,17 @@ def sync_1second():
             location = s.get("location")
             budget = s.get("budget")
             social = s.get("socialHandles", "")
+            signed_status = s.get("signed_status", "signed")
+            sig_name = s.get("signatureFullName", "")
             word_count = s.get("wordCount", 0)
             desc = s.get("description")
 
             if role_title == 'Designer':
-                ws_designers.append([sub_id, timestamp, name, email, phone, location, budget, word_count, social, desc])
+                ws_designers.append([sub_id, timestamp, name, email, phone, location, budget, signed_status, sig_name, word_count, social, desc])
             else:
-                ws_clients.append([sub_id, timestamp, name, email, phone, location, budget, word_count, desc])
+                ws_clients.append([sub_id, timestamp, name, email, phone, location, budget, signed_status, sig_name, word_count, desc])
 
-            ws_master.append([sub_id, timestamp, role_title, name, email, phone, location, budget, word_count, desc])
+            ws_master.append([sub_id, timestamp, role_title, name, email, phone, location, budget, signed_status, sig_name, word_count, desc])
 
         for r in reversed(reviews):
             ws_reviews.append([
@@ -306,7 +357,7 @@ def sync_1second():
         apply_beautification(ws_reviews)
 
         wb.save(EXCEL_PATH)
-        print(f"[OK 1s Auto-Sync] Synced ALL {len(subs)} Cumulative Submissions and {len(reviews)} Reviews into Excel & SQLite DB.")
+        print(f"[OK 1s Auto-Sync] Synced ALL {len(subs)} Cumulative Submissions with Signed Status into Excel & SQLite DB.")
 
     except PermissionError:
         print(f"[Notice] Excel file is open in Microsoft Excel. Saved to SQLite & CSV. Auto-updating Excel when closed...")
@@ -325,7 +376,3 @@ if __name__ == "__main__":
     while True:
         sync_1second()
         time.sleep(1)
-
-
-
-
