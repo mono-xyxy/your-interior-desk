@@ -316,8 +316,8 @@ export async function generateSubmissionPdf(submission: SubmissionData): Promise
 
     y = y - termsBoxHeight - 16;
 
-    // 5. Authorized Signature Box
-    page.drawText('AUTHORIZED DIGITAL SIGNATURE CONFIRMATION', {
+    // 5. Authorized Verification Box
+    page.drawText('AUTHORIZED INTAKE & SUBMISSION CONFIRMATION', {
       x: margin,
       y,
       size: 9,
@@ -346,7 +346,7 @@ export async function generateSubmissionPdf(submission: SubmissionData): Promise
     });
 
     // Left info
-    page.drawText('Digital Signature Execution Record', {
+    page.drawText('Intake Verification Record', {
       x: margin + 14,
       y: y - 20,
       size: 9.5,
@@ -354,7 +354,7 @@ export async function generateSubmissionPdf(submission: SubmissionData): Promise
       color: rgb(0.97, 0.98, 0.99),
     });
 
-    page.drawText(cleanPdfText(`Typed Legal Name: ${submission.signatureFullName || submission.fullName}`), {
+    page.drawText(cleanPdfText(`Applicant Name: ${submission.fullName || submission.signatureFullName}`), {
       x: margin + 14,
       y: y - 35,
       size: 9,
@@ -362,7 +362,7 @@ export async function generateSubmissionPdf(submission: SubmissionData): Promise
       color: rgb(0.88, 0.91, 0.94),
     });
 
-    page.drawText(cleanPdfText(`Status: signed (Verified) | File: ${submission.signatureFileName || 'signature.png'}`), {
+    page.drawText(cleanPdfText(`Status: Verified Submission | ID: ${submission.id}`), {
       x: margin + 14,
       y: y - 49,
       size: 8,
@@ -459,14 +459,14 @@ export async function generateSubmissionPdf(submission: SubmissionData): Promise
     }
 
     if (!embeddedImage) {
-      page.drawText(cleanPdfText(submission.signatureFullName || submission.fullName), {
+      page.drawText(cleanPdfText(submission.fullName || submission.signatureFullName), {
         x: sigAreaX + 12,
         y: sigAreaY + 28,
         size: 11,
         font: fontBold,
         color: rgb(0.97, 0.98, 0.99),
       });
-      page.drawText('Digitally Executed', {
+      page.drawText('Verified Intake Submission', {
         x: sigAreaX + 12,
         y: sigAreaY + 14,
         size: 7.5,

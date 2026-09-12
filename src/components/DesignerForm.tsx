@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Send, CheckCircle2, AlertCircle, Loader2, FileText, Check } from 'lucide-react';
-import SignatureAndTerms from './SignatureAndTerms';
 
 interface DesignerFormProps {
   onSuccess: () => void;
@@ -17,10 +16,6 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
     budget: '',
     socialHandles: '',
     description: '',
-    signatureFullName: '',
-    signatureFileName: '',
-    signatureData: '',
-    termsAccepted: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -40,27 +35,6 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (touchedErrors[e.target.name]) {
       setTouchedErrors({ ...touchedErrors, [e.target.name]: false });
-    }
-  };
-
-  const handleSignatureFullNameChange = (name: string) => {
-    setFormData((prev) => ({ ...prev, signatureFullName: name }));
-    if (touchedErrors.signatureFullName) {
-      setTouchedErrors((prev) => ({ ...prev, signatureFullName: false }));
-    }
-  };
-
-  const handleSignatureChange = (dataUrl: string, fileName: string) => {
-    setFormData((prev) => ({ ...prev, signatureData: dataUrl, signatureFileName: fileName }));
-    if (touchedErrors.signatureFile) {
-      setTouchedErrors((prev) => ({ ...prev, signatureFile: false }));
-    }
-  };
-
-  const handleTermsChange = (accepted: boolean) => {
-    setFormData((prev) => ({ ...prev, termsAccepted: accepted }));
-    if (touchedErrors.termsAccepted) {
-      setTouchedErrors((prev) => ({ ...prev, termsAccepted: false }));
     }
   };
 
@@ -86,26 +60,10 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
       setErrorMsg(`Please provide at least 80 words describing your design overview. (${currentWordCount} words entered)`);
     }
 
-    // Validate Signature and Terms
-    if (!formData.signatureFullName.trim()) {
-      newErrors.signatureFullName = true;
-      hasError = true;
-    }
-
-    if (!formData.signatureData) {
-      newErrors.signatureFile = true;
-      hasError = true;
-    }
-
-    if (!formData.termsAccepted) {
-      newErrors.termsAccepted = true;
-      hasError = true;
-    }
-
     if (hasError) {
       setTouchedErrors(newErrors);
       if (isWordCountValid) {
-        setErrorMsg('Please complete all required fields, provide your signature, and accept the terms.');
+        setErrorMsg('Please complete all required fields.');
       }
       return;
     }
@@ -125,10 +83,6 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
           budget: formData.budget,
           socialHandles: formData.socialHandles,
           description: formData.description,
-          signatureFullName: formData.signatureFullName,
-          signatureFileName: formData.signatureFileName,
-          signatureData: formData.signatureData,
-          termsAccepted: formData.termsAccepted,
         }),
       });
 
@@ -144,16 +98,12 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
           budget: '',
           socialHandles: '',
           description: '',
-          signatureFullName: '',
-          signatureFileName: '',
-          signatureData: '',
-          termsAccepted: false,
         });
         setTouchedErrors({});
         onSuccess();
         setTimeout(() => setSubmitted(false), 7000);
       } else {
-        setErrorMsg(data.error || 'Unable to complete registration. Please check your inputs.');
+        setErrorMsg(data.error || 'Unable to register profile. Please check your inputs.');
       }
     } catch {
       setErrorMsg('Network connection issue. Please check your connection and try again.');
@@ -182,9 +132,9 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
         <div className="mb-8 p-5 rounded-xl bg-[#0D2818] border border-[#2D6A4F] text-[#D8F3DC] flex items-start gap-3.5 animate-slide-down shadow-lg shadow-emerald-950/30">
           <CheckCircle2 className="w-5 h-5 text-[#52B788] flex-shrink-0 mt-0.5" />
           <div className="space-y-1 flex-1">
-            <h4 className="font-semibold text-sm text-[#74C69D]">Thank You! Profile Registered & Signed Successfully</h4>
+            <h4 className="font-semibold text-sm text-[#74C69D]">Thank You! Profile Registered Successfully</h4>
             <p className="text-xs text-[#B7E4C7]">
-              Your designer profile and digital signature have been securely recorded. Our team will review your portfolio and verify your registration.
+              Your designer profile has been securely recorded. Our team will review your portfolio and verify your registration.
             </p>
           </div>
         </div>
@@ -332,28 +282,12 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
           />
         </div>
 
-        {/* Signature & Terms Component */}
-        <SignatureAndTerms
-          signatureFullName={formData.signatureFullName}
-          signatureFileName={formData.signatureFileName}
-          signatureData={formData.signatureData}
-          termsAccepted={formData.termsAccepted}
-          errors={{
-            signatureFullName: touchedErrors.signatureFullName,
-            signatureFile: touchedErrors.signatureFile,
-            termsAccepted: touchedErrors.termsAccepted,
-          }}
-          onFullNameChange={handleSignatureFullNameChange}
-          onSignatureChange={handleSignatureChange}
-          onTermsChange={handleTermsChange}
-        />
-
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading || !isWordCountValid}
+          disabled={loading}
           className={`w-full py-4 px-6 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 flex items-center justify-center gap-3 ${
-            isWordCountValid && !loading
+            !loading
               ? 'btn-silver shadow-lg shadow-[#E2E8F0]/10 hover:scale-[1.005]'
               : 'bg-[#1C2838] text-[#94A3B8] cursor-not-allowed border border-[#94A3B8]/20'
           }`}
@@ -361,12 +295,12 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
           {loading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin text-[#0B1320]" />
-              <span>Recording & Signing Details...</span>
+              <span>Registering Profile...</span>
             </>
           ) : (
             <>
               <Send className="w-4 h-4" />
-              <span>Register & Sign Designer Profile</span>
+              <span>Register Designer Profile</span>
             </>
           )}
         </button>

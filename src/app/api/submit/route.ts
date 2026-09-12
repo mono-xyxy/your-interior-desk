@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
       'budget',
       'description',
       'role',
-      'signatureFullName',
     ];
 
     for (const field of requiredFields) {
@@ -31,38 +30,12 @@ export async function POST(req: NextRequest) {
     const descriptionText = body.description.trim();
     const wordCount = countWords(descriptionText);
 
-    if (body.termsAccepted !== true) {
-      return NextResponse.json(
-        { success: false, error: 'You must accept the terms and conditions to proceed.' },
-        { status: 400 }
-      );
-    }
-
-    if (
-      typeof body.signatureData !== 'string' ||
-      !body.signatureData.startsWith('data:image/') ||
-      !body.signatureData.includes(';base64,')
-    ) {
-      return NextResponse.json(
-        { success: false, error: 'Please provide a valid signature (upload image or draw signature).' },
-        { status: 400 }
-      );
-    }
-
-    const [, encodedSignature] = body.signatureData.split(';base64,', 2);
-    const signatureBuffer = Buffer.from(encodedSignature, 'base64');
-    if (signatureBuffer.byteLength > 2.5 * 1024 * 1024) {
-      return NextResponse.json(
-        { success: false, error: 'Signature file size must be 2 MB or smaller.' },
-        { status: 400 }
-      );
-    }
-
-    if (wordCount < 80) {
+    const minWords = body.role === 'designer' ? 80 : 15;
+    if (wordCount < minWords) {
       return NextResponse.json(
         {
           success: false,
-          error: `Minimum 80 words required. You currently provided ${wordCount} words (${80 - wordCount} more words needed).`,
+          error: `Minimum ${minWords} words required for project details. You currently provided ${wordCount} words (${minWords - wordCount} more words needed).`,
         },
         { status: 400 }
       );
@@ -70,30 +43,43 @@ export async function POST(req: NextRequest) {
 
     const id = 'YID-' + Math.random().toString(36).substring(2, 9).toUpperCase();
 
-    // Determine extension
+    // Optional signature handling if provided
     let extension = 'png';
-    if (body.signatureData.startsWith('data:image/jpeg') || body.signatureData.startsWith('data:image/jpg')) {
-      extension = 'jpg';
-    } else if (body.signatureData.startsWith('data:image/webp')) {
-      extension = 'webp';
-    } else if (body.signatureData.startsWith('data:image/svg')) {
-      extension = 'svg';
+    let signatureBuffer: Buffer | null = null;
+    let signatureFilePath = '';
+
+    if (body.signatureData && typeof body.signatureData === 'string' && body.signatureData.startsWith('data:image/')) {
+      if (body.signatureData.startsWith('data:image/jpeg') || body.signatureData.startsWith('data:image/jpg')) {
+        extension = 'jpg';
+      } else if (body.signatureData.startsWith('data:image/webp')) {
+        extension = 'webp';
+      } else if (body.signatureData.startsWith('data:image/svg')) {
+        extension = 'svg';
+      }
+      try {
+        const [, encodedSignature] = body.signatureData.split(';base64,', 2);
+        if (encodedSignature) {
+          signatureBuffer = Buffer.from(encodedSignature, 'base64');
+        }
+      } catch {}
     }
 
-    // Save physical signature file locally
+    // Save physical signature file locally if present
     const desktopFolder = 'C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk';
     const archiveDir = path.join(desktopFolder, 'Submitted_Forms', id);
     const filledFormsDir = path.join(desktopFolder, 'Filled_Forms');
-    const signatureFilePath = path.join(archiveDir, `signature.${extension}`);
-    const filledSignatureFilePath = path.join(filledFormsDir, `${id}_signature.${extension}`);
 
-    try {
-      if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
-      if (!fs.existsSync(filledFormsDir)) fs.mkdirSync(filledFormsDir, { recursive: true });
-      fs.writeFileSync(signatureFilePath, signatureBuffer);
-      fs.writeFileSync(filledSignatureFilePath, signatureBuffer);
-    } catch (fsErr) {
-      console.error('Local disk write error (continuing with in-memory signature):', fsErr);
+    if (signatureBuffer) {
+      signatureFilePath = path.join(archiveDir, `signature.${extension}`);
+      const filledSignatureFilePath = path.join(filledFormsDir, `${id}_signature.${extension}`);
+      try {
+        if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+        if (!fs.existsSync(filledFormsDir)) fs.mkdirSync(filledFormsDir, { recursive: true });
+        fs.writeFileSync(signatureFilePath, signatureBuffer);
+        fs.writeFileSync(filledSignatureFilePath, signatureBuffer);
+      } catch (fsErr) {
+        console.error('Local disk write error (continuing with in-memory signature):', fsErr);
+      }
     }
 
     const newSubmission: SubmissionData = {
@@ -108,12 +94,12 @@ export async function POST(req: NextRequest) {
       socialHandles: body.socialHandles ? body.socialHandles.trim() : '',
       description: descriptionText,
       wordCount: wordCount,
-      signatureFullName: body.signatureFullName.trim(),
-      signatureFileName: body.signatureFileName || `signature.${extension}`,
-      signatureFilePath,
-      signatureData: body.signatureData,
+      signatureFullName: body.signatureFullName ? body.signatureFullName.trim() : body.fullName.trim(),
+      signatureFileName: body.signatureFileName || (signatureBuffer ? `signature.${extension}` : ''),
+      signatureFilePath: signatureFilePath || undefined,
+      signatureData: body.signatureData || undefined,
       termsAccepted: true,
-      signedStatus: 'signed',
+      signedStatus: 'submitted',
     };
 
     await saveSubmission(newSubmission);
@@ -127,9 +113,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Submission recorded, signed, and saved as PDF successfully!',
+      message: 'Submission recorded and saved successfully!',
       pdfBase64: pdfResult?.pdfBase64 || null,
-      pdfFileName: pdfResult?.fileName || `${newSubmission.signatureFullName || newSubmission.fullName}_${new Date().toISOString().slice(0, 10)}.pdf`,
+      pdfFileName: pdfResult?.fileName || `${newSubmission.fullName}_${new Date().toISOString().slice(0, 10)}.pdf`,
       pdfPath: pdfResult?.primaryPdfPath || null,
       data: newSubmission,
     });
