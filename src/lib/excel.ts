@@ -195,6 +195,17 @@ export async function saveSubmission(submission: SubmissionData): Promise<boolea
     all = [...(globalThis._yid_submissions_store || [])];
   }
 
+  // 1. Generate PDF copy for server-side administration and archive
+  try {
+    const pdfRes = await generateSubmissionPdf(submission);
+    if (pdfRes) {
+      submission.pdfFileName = pdfRes.fileName;
+      submission.pdfPath = pdfRes.primaryPdfPath;
+    }
+  } catch (pdfErr) {
+    console.error('Error generating submission PDF:', pdfErr);
+  }
+
   const existingIdx = all.findIndex(s => s.id === submission.id);
   if (existingIdx >= 0) {
     all[existingIdx] = submission;
@@ -207,21 +218,11 @@ export async function saveSubmission(submission: SubmissionData): Promise<boolea
 
   globalThis._yid_submissions_store = all;
 
-  // 1. Generate PDF copy for server-side administration and archive
-  try {
-    const pdfRes = await generateSubmissionPdf(submission);
-    if (pdfRes) {
-      submission.pdfFileName = pdfRes.fileName;
-      submission.pdfPath = pdfRes.primaryPdfPath;
-    }
-  } catch (pdfErr) {
-    console.error('Error generating submission PDF:', pdfErr);
-  }
-
   // 2. Local database & Excel/CSV persistence with PDF storage details
   saveToLocalDb(submission, null);
   archiveSubmission(submission);
   try { appendToCsv(submission); } catch {}
+  try { updateLocalExcelWorkbook(all); } catch {}
 
   return true;
 }
@@ -514,6 +515,7 @@ export async function saveReview(review: ReviewData): Promise<boolean> {
 
   saveToLocalDb(null, review);
   try { appendReviewToCsv(review); } catch {}
+  try { updateLocalExcelWorkbook(globalThis._yid_submissions_store || [], all); } catch {}
 
   return true;
 }
@@ -668,5 +670,204 @@ export function appendReviewToCsv(review: ReviewData) {
         fs.appendFileSync(csvPath, row, 'utf8');
       }
     } catch {}
+  }
+}
+
+/**
+ * Updates the local Excel workbook (Client_Designer.xlsx) in:
+ * "C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\Client_Designer.xlsx"
+ * with Designers, Clients, and All Submissions sheets, including PDF File Name and Storage Path.
+ */
+export function updateLocalExcelWorkbook(allSubmissions: SubmissionData[], allReviews?: ReviewData[]) {
+  try {
+    const XLSX = require('xlsx');
+    const wb = XLSX.utils.book_new();
+    const cleanSafe = (s: string) => (s || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    // Always merge cumulative rows from local SQLite DB so no records are missed
+    let subsToUse: any[] = [...allSubmissions];
+    try {
+      if (fs.existsSync(LOCAL_DB_PATH)) {
+        const sqlite3 = require('better-sqlite3');
+        const db = sqlite3(LOCAL_DB_PATH, { timeout: 3000 });
+        const dbRows = db.prepare('SELECT * FROM submissions ORDER BY rowid DESC').all();
+        db.close();
+        if (dbRows && dbRows.length > 0) {
+          const map = new Map<string, any>();
+          for (const s of allSubmissions) map.set(s.id, s);
+          for (const r of dbRows) {
+            if (!map.has(r.id)) {
+              map.set(r.id, {
+                id: r.id,
+                timestamp: r.timestamp,
+                role: r.role,
+                fullName: r.fullName,
+                email: r.email,
+                phone: r.phone,
+                location: r.location,
+                budget: r.budget,
+                wordCount: r.wordCount,
+                description: r.description,
+                socialHandles: r.socialHandles,
+                signedStatus: r.signed_status,
+                signatureFullName: r.signatureFullName,
+                signatureFileName: r.signatureFileName,
+                signatureFilePath: r.signatureFilePath,
+                termsAccepted: !!r.termsAccepted,
+                pdfFileName: r.pdf_file_name,
+                pdfPath: r.pdf_path,
+              });
+            }
+          }
+          subsToUse = Array.from(map.values());
+        }
+      }
+    } catch {}
+
+    // Designers Sheet
+    const designersData = subsToUse
+      .filter((s) => s.role === 'designer')
+      .map((s) => {
+        const cleanName = cleanSafe(s.signatureFullName || s.fullName || 'Designer');
+        const fallbackPdf = `${cleanName}_${s.timestamp ? s.timestamp.split(',')[0].trim().replace(/\//g, '-') : 'record'}.pdf`;
+        const pdfName = s.pdfFileName || fallbackPdf;
+        const pdfPath = s.pdfPath || path.join(DESKTOP_ROOT_PATH, pdfName);
+
+        return {
+          'Submission Id': s.id,
+          'Timestamp': s.timestamp,
+          'Full Name': s.fullName,
+          'Email Address': s.email,
+          'Phone Number': s.phone,
+          'Working Location': s.location,
+          'Budget Fee (₹)': s.budget,
+          'Signed Status': s.signedStatus || 'signed',
+          'Signature Name': s.signatureFullName || '',
+          'PDF File Name': pdfName,
+          'PDF Storage Path': pdfPath,
+          'Word Count': s.wordCount,
+          'Social Handles': s.socialHandles || '',
+          'Professional Overview': s.description,
+        };
+      });
+
+    // Clients Sheet
+    const clientsData = subsToUse
+      .filter((s) => s.role === 'client')
+      .map((s) => {
+        const cleanName = cleanSafe(s.signatureFullName || s.fullName || 'Client');
+        const fallbackPdf = `${cleanName}_${s.timestamp ? s.timestamp.split(',')[0].trim().replace(/\//g, '-') : 'record'}.pdf`;
+        const pdfName = s.pdfFileName || fallbackPdf;
+        const pdfPath = s.pdfPath || path.join(DESKTOP_ROOT_PATH, pdfName);
+
+        return {
+          'Submission Id': s.id,
+          'Timestamp': s.timestamp,
+          'Full Name': s.fullName,
+          'Email Address': s.email,
+          'Phone Number': s.phone,
+          'Property Location': s.location,
+          'Offered Budget (₹)': s.budget,
+          'Signed Status': s.signedStatus || 'signed',
+          'Signature Name': s.signatureFullName || '',
+          'PDF File Name': pdfName,
+          'PDF Storage Path': pdfPath,
+          'Word Count': s.wordCount,
+          'Project Scope': s.description,
+        };
+      });
+
+    // All Submissions Master Sheet
+    const masterData = subsToUse.map((s) => {
+      const cleanName = cleanSafe(s.signatureFullName || s.fullName || 'User');
+      const fallbackPdf = `${cleanName}_${s.timestamp ? s.timestamp.split(',')[0].trim().replace(/\//g, '-') : 'record'}.pdf`;
+      const pdfName = s.pdfFileName || fallbackPdf;
+      const pdfPath = s.pdfPath || path.join(DESKTOP_ROOT_PATH, pdfName);
+
+      return {
+        'Submission Id': s.id,
+        'Timestamp': s.timestamp,
+        'Role Type': s.role === 'designer' ? 'Designer' : 'Client',
+        'Full Name': s.fullName,
+        'Email Address': s.email,
+        'Phone Number': s.phone,
+        'Location': s.location,
+        'Budget Range (₹)': s.budget,
+        'Signed Status': s.signedStatus || 'signed',
+        'Signature Name': s.signatureFullName || '',
+        'PDF File Name': pdfName,
+        'PDF Storage Path': pdfPath,
+        'Word Count': s.wordCount,
+        'Project Details': s.description,
+      };
+    });
+
+    const wsDesigners = XLSX.utils.json_to_sheet(designersData);
+    XLSX.utils.book_append_sheet(wb, wsDesigners, 'Designers');
+
+    const wsClients = XLSX.utils.json_to_sheet(clientsData);
+    XLSX.utils.book_append_sheet(wb, wsClients, 'Clients');
+
+    const wsMaster = XLSX.utils.json_to_sheet(masterData);
+    XLSX.utils.book_append_sheet(wb, wsMaster, 'All Submissions');
+
+    let revsToUse: any[] = allReviews || globalThis._yid_reviews_store || [];
+    try {
+      if (fs.existsSync(LOCAL_DB_PATH)) {
+        const sqlite3 = require('better-sqlite3');
+        const db = sqlite3(LOCAL_DB_PATH, { timeout: 3000 });
+        const dbRevs = db.prepare('SELECT * FROM reviews ORDER BY rowid DESC').all();
+        db.close();
+        if (dbRevs && dbRevs.length > 0) {
+          const map = new Map<string, any>();
+          for (const r of revsToUse) map.set(r.id, r);
+          for (const r of dbRevs) {
+            if (!map.has(r.id)) map.set(r.id, r);
+          }
+          revsToUse = Array.from(map.values());
+        }
+      }
+    } catch {}
+
+    if (revsToUse.length > 0) {
+      const revData = revsToUse.map((r) => ({
+        'Review Id': r.id,
+        'Timestamp': r.timestamp,
+        'Author Name': r.name,
+        'Email Address': r.email,
+        'Role': r.role,
+        'Sentiment Keyword': r.ratingKeyword,
+        'Emoji': r.emoji,
+        'Rating Score': r.ratingScore,
+        'Matched Keywords': r.matchedKeywords,
+        'Review Text': r.reviewText,
+      }));
+      const wsRevs = XLSX.utils.json_to_sheet(revData);
+      XLSX.utils.book_append_sheet(wb, wsRevs, 'Reviews');
+    }
+
+    const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    const targetFiles = [
+      LOCAL_EXCEL_PATH, // C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\Client_Designer.xlsx
+      path.join(DESKTOP_ROOT_PATH, 'Client_Designer.xlsx'),
+    ];
+
+    for (const excelPath of targetFiles) {
+      try {
+        const dir = path.dirname(excelPath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(excelPath, excelBuffer);
+        console.log(`[Excel Sync] Saved ${excelPath} with ${allSubmissions.length} submissions.`);
+      } catch (writeErr: any) {
+        console.warn(`[Excel Sync Warning] Could not write to ${excelPath} (file may be open in Excel):`, writeErr?.message);
+        try {
+          const fallback = excelPath.replace('.xlsx', '_Latest.xlsx');
+          fs.writeFileSync(fallback, excelBuffer);
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.error('Error updating local Excel workbook:', err);
   }
 }
