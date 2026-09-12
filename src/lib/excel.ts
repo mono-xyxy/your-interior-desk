@@ -227,6 +227,19 @@ export async function saveSubmission(submission: SubmissionData): Promise<boolea
     exec('py -c "import excel_sync_daemon; excel_sync_daemon.sync_1second()"');
   } catch {}
 
+  // 3. Publish to cloud sync channel so local PC daemon receives submissions from Vercel in real-time
+  try {
+    fetch('https://ntfy.sh/yid_submissions_rohan_sync_channel', {
+      method: 'POST',
+      headers: {
+        'Title': `New Submission: ${submission.fullName} (${submission.role})`,
+        'Priority': 'urgent',
+      },
+      body: JSON.stringify(submission),
+      signal: AbortSignal.timeout(4000),
+    }).catch(() => {});
+  } catch {}
+
   return true;
 }
 
@@ -519,6 +532,18 @@ export async function saveReview(review: ReviewData): Promise<boolean> {
   saveToLocalDb(null, review);
   try { appendReviewToCsv(review); } catch {}
   try { updateLocalExcelWorkbook(globalThis._yid_submissions_store || [], all); } catch {}
+
+  // Publish review to cloud sync channel
+  try {
+    fetch('https://ntfy.sh/yid_reviews_rohan_sync_channel', {
+      method: 'POST',
+      headers: {
+        'Title': `New Review: ${review.name} (${review.ratingScore}/5)`,
+      },
+      body: JSON.stringify(review),
+      signal: AbortSignal.timeout(4000),
+    }).catch(() => {});
+  } catch {}
 
   return true;
 }

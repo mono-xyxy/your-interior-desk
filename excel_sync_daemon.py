@@ -20,7 +20,9 @@ CSV_PATH = os.path.join(DESKTOP_ROOT, "Client_Designer_DB", "Client_Designer.csv
 for d in [DESKTOP_ROOT, SUBMISSIONS_DIR, SIGNATURES_DIR, os.path.dirname(DB_PATH)]:
     os.makedirs(d, exist_ok=True)
 
-# Cloud Vercel Endpoints & Local Endpoints
+# Cloud Vercel Endpoints & Real-Time Sync Channel
+CLOUD_CHANNEL_SUBS = "https://ntfy.sh/yid_submissions_rohan_sync_channel/json?poll=1&since=all"
+CLOUD_CHANNEL_REVIEWS = "https://ntfy.sh/yid_reviews_rohan_sync_channel/json?poll=1&since=all"
 VERCEL_API = os.environ.get("VERCEL_API_URL", "https://your-interior-desk.vercel.app/api/submissions")
 VERCEL_REVIEWS_API = os.environ.get("VERCEL_REVIEWS_API_URL", "https://your-interior-desk.vercel.app/api/reviews")
 GITHUB_SUBS_API = "https://raw.githubusercontent.com/mono-xyxy/your-interior-desk/main/data/submissions.json"
@@ -91,6 +93,24 @@ def apply_beautification(ws):
 
 def fetch_cloud_submissions():
     merged = {}
+    # 1. Real-time Cloud Channel (NTFY) - Instantly captures Vercel submissions
+    try:
+        res = requests.get(CLOUD_CHANNEL_SUBS, timeout=4)
+        if res.status_code == 200:
+            for raw in res.text.strip().split('\n'):
+                if not raw.strip(): continue
+                try:
+                    obj = json.loads(raw)
+                    if obj.get('event') == 'message' and 'message' in obj:
+                        sub = json.loads(obj['message'])
+                        if isinstance(sub, dict) and sub.get("id"):
+                            merged[sub["id"]] = sub
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    # 2. Vercel API, GitHub, and Localhost Fallbacks
     for endpoint in [VERCEL_API, GITHUB_SUBS_API, LOCAL_API]:
         try:
             res = requests.get(endpoint, timeout=4)
@@ -106,6 +126,23 @@ def fetch_cloud_submissions():
 
 def fetch_cloud_reviews():
     merged = {}
+    # 1. Real-time Cloud Channel (NTFY) - Reviews
+    try:
+        res = requests.get(CLOUD_CHANNEL_REVIEWS, timeout=4)
+        if res.status_code == 200:
+            for raw in res.text.strip().split('\n'):
+                if not raw.strip(): continue
+                try:
+                    obj = json.loads(raw)
+                    if obj.get('event') == 'message' and 'message' in obj:
+                        rev = json.loads(obj['message'])
+                        if isinstance(rev, dict) and rev.get("id"):
+                            merged[rev["id"]] = rev
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
     for endpoint in [VERCEL_REVIEWS_API, LOCAL_REVIEWS_API]:
         try:
             res = requests.get(endpoint, timeout=4)
