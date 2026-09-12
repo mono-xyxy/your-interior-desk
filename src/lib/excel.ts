@@ -38,6 +38,8 @@ export interface SubmissionData {
   signatureData?: string; // base64 data url for direct embedding
   termsAccepted: boolean;
   signedStatus: string;
+  pdfFileName?: string;
+  pdfPath?: string;
 }
 
 export type { ReviewData };
@@ -205,14 +207,20 @@ export async function saveSubmission(submission: SubmissionData): Promise<boolea
 
   globalThis._yid_submissions_store = all;
 
-  // Local persistence & filled form copy export
-  saveToLocalDb(submission, null);
-  archiveSubmission(submission);
+  // 1. Generate PDF copy for server-side administration and archive
   try {
-    await generateSubmissionPdf(submission);
+    const pdfRes = await generateSubmissionPdf(submission);
+    if (pdfRes) {
+      submission.pdfFileName = pdfRes.fileName;
+      submission.pdfPath = pdfRes.primaryPdfPath;
+    }
   } catch (pdfErr) {
     console.error('Error generating submission PDF:', pdfErr);
   }
+
+  // 2. Local database & Excel/CSV persistence with PDF storage details
+  saveToLocalDb(submission, null);
+  archiveSubmission(submission);
   try { appendToCsv(submission); } catch {}
 
   return true;
@@ -527,7 +535,8 @@ function saveToLocalDb(submission: SubmissionData | null, review: ReviewData | n
           budget TEXT, socialHandles TEXT, description TEXT,
           wordCount INTEGER, signatureFullName TEXT, signatureFileName TEXT,
           signatureFilePath TEXT, termsAccepted INTEGER DEFAULT 1,
-          signed_status TEXT DEFAULT 'signed', synced_to_excel INTEGER DEFAULT 0
+          signed_status TEXT DEFAULT 'signed', pdf_file_name TEXT,
+          pdf_path TEXT, synced_to_excel INTEGER DEFAULT 0
         )
       `);
       db.exec(`
@@ -546,12 +555,14 @@ function saveToLocalDb(submission: SubmissionData | null, review: ReviewData | n
       try { db.exec('ALTER TABLE submissions ADD COLUMN signatureFilePath TEXT;'); } catch {}
       try { db.exec('ALTER TABLE submissions ADD COLUMN termsAccepted INTEGER DEFAULT 1;'); } catch {}
       try { db.exec("ALTER TABLE submissions ADD COLUMN signed_status TEXT DEFAULT 'signed';"); } catch {}
+      try { db.exec('ALTER TABLE submissions ADD COLUMN pdf_file_name TEXT;'); } catch {}
+      try { db.exec('ALTER TABLE submissions ADD COLUMN pdf_path TEXT;'); } catch {}
 
       if (submission) {
         db.prepare(`
           INSERT OR REPLACE INTO submissions
-          (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, wordCount, signatureFullName, signatureFileName, signatureFilePath, termsAccepted, signed_status, synced_to_excel)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+          (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, wordCount, signatureFullName, signatureFileName, signatureFilePath, termsAccepted, signed_status, pdf_file_name, pdf_path, synced_to_excel)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
         `).run(
           submission.id,
           submission.timestamp,
@@ -568,7 +579,9 @@ function saveToLocalDb(submission: SubmissionData | null, review: ReviewData | n
           submission.signatureFileName,
           submission.signatureFilePath || '',
           submission.termsAccepted ? 1 : 0,
-          submission.signedStatus || 'signed'
+          submission.signedStatus || 'signed',
+          submission.pdfFileName || '',
+          submission.pdfPath || ''
         );
       }
 
@@ -605,7 +618,7 @@ export function appendToCsv(sub: SubmissionData) {
       const dir = path.dirname(csvPath);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const fileExists = fs.existsSync(csvPath);
-      const headers = 'ID,Timestamp,Role,Full Name,Email Address,Phone,Location,Budget (INR),Social Handles,Signed Status,Signature Full Name,Word Count,Description\n';
+      const headers = 'ID,Timestamp,Role,Full Name,Email Address,Phone,Location,Budget (INR),Social Handles,Signed Status,Signature Full Name,PDF File Name,PDF Storage Path,Word Count,Description\n';
       const cleanStr = (s: string) => `"${(s || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
       const row = [
         cleanStr(sub.id),
@@ -619,6 +632,8 @@ export function appendToCsv(sub: SubmissionData) {
         cleanStr(sub.socialHandles || ''),
         cleanStr(sub.signedStatus || 'signed'),
         cleanStr(sub.signatureFullName || ''),
+        cleanStr(sub.pdfFileName || ''),
+        cleanStr(sub.pdfPath || ''),
         sub.wordCount,
         cleanStr(sub.description),
       ].join(',') + '\n';

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Database, FileSpreadsheet, RefreshCw, User, Palette, CheckCircle2, FileSignature } from 'lucide-react';
+import { X, Database, FileSpreadsheet, RefreshCw, User, Palette, CheckCircle2, FileSignature, FileText, Download } from 'lucide-react';
 import { SubmissionData } from '@/lib/excel';
 
 interface AdminModalProps {
@@ -95,14 +95,27 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
             </button>
           </div>
 
-          <button
-            onClick={fetchSubmissions}
-            disabled={loading}
-            className="flex items-center gap-1.5 text-xs text-[#CBD5E1] hover:text-white transition-colors"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <a
+              href="/api/export-excel"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F2942] hover:bg-[#1E3A5F] text-[#93C5FD] border border-[#2563EB]/40 transition-colors text-xs font-semibold"
+              title="Download cumulative Excel workbook (.xlsx) with PDF records"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export Excel (.xlsx)</span>
+            </a>
+
+            <button
+              onClick={fetchSubmissions}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-xs text-[#CBD5E1] hover:text-white transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
         </div>
 
         {/* Table View */}
@@ -122,6 +135,7 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
                     <th className="p-3">Signed Status</th>
                     <th className="p-3">Name</th>
                     <th className="p-3">Signature Full Name</th>
+                    <th className="p-3">Server PDF Record</th>
                     <th className="p-3">Contact</th>
                     <th className="p-3">Location</th>
                     <th className="p-3">Budget (₹)</th>
@@ -130,44 +144,65 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E2E8F0]/10 text-[#F8FAFC]">
-                  {filtered.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#1E2E48]/50 transition-colors">
-                      <td className="p-3 font-mono text-[#CBD5E1]">{item.id}</td>
-                      <td className="p-3">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            item.role === 'designer'
-                              ? 'bg-[#1E2E48] text-[#CBD5E1] border border-[#CBD5E1]/40'
-                              : 'bg-[#0F2942] text-[#60A5FA] border border-[#60A5FA]/40'
-                          }`}
-                        >
-                          {item.role === 'designer' ? <Palette className="w-3 h-3" /> : <User className="w-3 h-3" />}
-                          {item.role}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#0D2818] text-[#52B788] border border-[#2D6A4F]">
-                          <CheckCircle2 className="w-3 h-3 text-[#52B788]" />
-                          {item.signedStatus || 'signed'}
-                        </span>
-                      </td>
-                      <td className="p-3 font-semibold">{item.fullName}</td>
-                      <td className="p-3 text-[#CBD5E1]">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#E2E8F0]">
-                          <FileSignature className="w-3 h-3 text-[#94A3B8]" />
-                          {item.signatureFullName || item.fullName}
-                        </span>
-                      </td>
-                      <td className="p-3 text-[#CBD5E1]">
-                        <div>{item.email}</div>
-                        <div className="text-[11px] text-[#94A3B8]">{item.phone}</div>
-                      </td>
-                      <td className="p-3 text-[#CBD5E1]">{item.location}</td>
-                      <td className="p-3 text-[#CBD5E1] font-semibold">{item.budget}</td>
-                      <td className="p-3 text-[#94A3B8] font-mono text-[11px]">{item.wordCount || '—'} words</td>
-                      <td className="p-3 text-[11px] text-[#94A3B8] whitespace-nowrap">{item.timestamp}</td>
-                    </tr>
-                  ))}
+                  {filtered.map((item) => {
+                    const cleanName = (item.signatureFullName || item.fullName || 'User').replace(/[^a-zA-Z0-9_-]/g, '_');
+                    const tsDate = item.timestamp ? item.timestamp.split(',')[0].trim().replace(/\//g, '-') : 'record';
+                    const displayPdfName = item.pdfFileName || `${cleanName}_${tsDate}.pdf`;
+
+                    return (
+                      <tr key={item.id} className="hover:bg-[#1E2E48]/50 transition-colors">
+                        <td className="p-3 font-mono text-[#CBD5E1]">{item.id}</td>
+                        <td className="p-3">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              item.role === 'designer'
+                                ? 'bg-[#1E2E48] text-[#CBD5E1] border border-[#CBD5E1]/40'
+                                : 'bg-[#0F2942] text-[#60A5FA] border border-[#60A5FA]/40'
+                            }`}
+                          >
+                            {item.role === 'designer' ? <Palette className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                            {item.role}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#0D2818] text-[#52B788] border border-[#2D6A4F]">
+                            <CheckCircle2 className="w-3 h-3 text-[#52B788]" />
+                            {item.signedStatus || 'signed'}
+                          </span>
+                        </td>
+                        <td className="p-3 font-semibold">{item.fullName}</td>
+                        <td className="p-3 text-[#CBD5E1]">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#E2E8F0]">
+                            <FileSignature className="w-3 h-3 text-[#94A3B8]" />
+                            {item.signatureFullName || item.fullName}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <a
+                            href={`/api/download-pdf?id=${item.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#102A43] hover:bg-[#1E3A5F] text-[#93C5FD] border border-[#2563EB]/40 transition-colors text-[11px] font-semibold"
+                            title="Open/view server copy of signed PDF"
+                          >
+                            <FileText className="w-3 h-3 text-[#60A5FA]" />
+                            <span>View PDF</span>
+                          </a>
+                          <div className="text-[10px] text-[#64748B] mt-0.5 max-w-[140px] truncate" title={displayPdfName}>
+                            {displayPdfName}
+                          </div>
+                        </td>
+                        <td className="p-3 text-[#CBD5E1]">
+                          <div>{item.email}</div>
+                          <div className="text-[11px] text-[#94A3B8]">{item.phone}</div>
+                        </td>
+                        <td className="p-3 text-[#CBD5E1]">{item.location}</td>
+                        <td className="p-3 text-[#CBD5E1] font-semibold">{item.budget}</td>
+                        <td className="p-3 text-[#94A3B8] font-mono text-[11px]">{item.wordCount || '—'} words</td>
+                        <td className="p-3 text-[11px] text-[#94A3B8] whitespace-nowrap">{item.timestamp}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

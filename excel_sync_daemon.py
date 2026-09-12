@@ -112,7 +112,8 @@ def get_all_db_submissions():
             c = conn.cursor()
             c.execute("""
                 SELECT id, timestamp, role, fullName, email, phone, location, budget, 
-                       socialHandles, description, wordCount, signed_status, signatureFullName 
+                       socialHandles, description, wordCount, signed_status, signatureFullName,
+                       pdf_file_name, pdf_path
                 FROM submissions ORDER BY timestamp ASC
             """)
             rows = c.fetchall()
@@ -122,7 +123,9 @@ def get_all_db_submissions():
                     "id": r[0], "timestamp": r[1], "role": r[2], "fullName": r[3],
                     "email": r[4], "phone": r[5], "location": r[6], "budget": r[7],
                     "socialHandles": r[8], "description": r[9], "wordCount": r[10],
-                    "signed_status": r[11] or "signed", "signatureFullName": r[12] or ""
+                    "signed_status": r[11] or "signed", "signatureFullName": r[12] or "",
+                    "pdf_file_name": (r[13] if len(r) > 13 else "") or "",
+                    "pdf_path": (r[14] if len(r) > 14 else "") or ""
                 } for r in rows
             ]
         except Exception:
@@ -197,7 +200,9 @@ def save_to_sqlite(subs, reviews):
             "ALTER TABLE submissions ADD COLUMN signatureFullName TEXT",
             "ALTER TABLE submissions ADD COLUMN signatureFileName TEXT",
             "ALTER TABLE submissions ADD COLUMN signatureFilePath TEXT",
-            "ALTER TABLE submissions ADD COLUMN termsAccepted INTEGER DEFAULT 1"
+            "ALTER TABLE submissions ADD COLUMN termsAccepted INTEGER DEFAULT 1",
+            "ALTER TABLE submissions ADD COLUMN pdf_file_name TEXT",
+            "ALTER TABLE submissions ADD COLUMN pdf_path TEXT"
         ]:
             try:
                 c.execute(col_def)
@@ -206,16 +211,24 @@ def save_to_sqlite(subs, reviews):
 
         for s in subs:
             role_str = "Designer" if s.get("role", "").lower() == "designer" else "Client"
+            clean_name = (s.get("signatureFullName") or s.get("fullName") or "User").replace(" ", "_")
+            ts_str = (s.get("timestamp") or "").split(",")[0].strip().replace("/", "-")
+            default_pdf = f"{clean_name}_{ts_str}.pdf"
+            pdf_name = s.get("pdfFileName") or s.get("pdf_file_name") or default_pdf
+            pdf_path = s.get("pdfPath") or s.get("pdf_path") or rf"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\{pdf_name}"
+
             c.execute("""
                 INSERT OR REPLACE INTO submissions 
-                (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, wordCount, signed_status, signatureFullName, synced_to_excel)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                (id, timestamp, role, fullName, email, phone, location, budget, socialHandles, description, wordCount, signed_status, signatureFullName, pdf_file_name, pdf_path, synced_to_excel)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             """, (
                 s.get("id"), s.get("timestamp"), role_str, s.get("fullName"),
                 s.get("email"), s.get("phone"), s.get("location"), s.get("budget"),
                 s.get("socialHandles", ""), s.get("description"), s.get("wordCount", 0),
                 s.get("signedStatus") or s.get("signed_status") or "signed",
-                s.get("signatureFullName", "")
+                s.get("signatureFullName", ""),
+                pdf_name,
+                pdf_path
             ))
 
         for r in reviews:
@@ -260,15 +273,23 @@ def sync_1second():
             writer.writerow([
                 'Submission Id', 'Timestamp', 'Role', 'Full Name', 'Email Address', 
                 'Phone Number', 'Location', 'Budget Range (₹)', 'Social Handles', 
-                'Signed Status', 'Signature Name', 'Word Count', 'Project Description'
+                'Signed Status', 'Signature Name', 'PDF File Name', 'PDF Storage Path',
+                'Word Count', 'Project Description'
             ])
             for s in reversed(subs):
                 role_title = "Designer" if s.get("role", "").lower() == "designer" else "Client"
+                clean_name = (s.get("signatureFullName") or s.get("fullName") or "User").replace(" ", "_")
+                ts_str = (s.get("timestamp") or "").split(",")[0].strip().replace("/", "-")
+                default_pdf = f"{clean_name}_{ts_str}.pdf"
+                pdf_name = s.get("pdf_file_name") or s.get("pdfFileName") or default_pdf
+                pdf_path = s.get("pdf_path") or s.get("pdfPath") or rf"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\{pdf_name}"
+
                 writer.writerow([
                     s.get("id"), s.get("timestamp"), role_title,
                     s.get("fullName"), s.get("email"), s.get("phone"),
                     s.get("location"), s.get("budget"), s.get("socialHandles", ""),
                     s.get("signed_status", "signed"), s.get("signatureFullName", ""),
+                    pdf_name, pdf_path,
                     s.get("wordCount", 0), s.get("description")
                 ])
     except Exception:
@@ -298,7 +319,7 @@ def sync_1second():
         ws_designers.append([
             'Submission Id', 'Timestamp', 'Full Name', 'Email Address', 'Phone Number', 
             'Working Location', 'Budget Fee (₹)', 'Signed Status', 'Signature Name', 
-            'Word Count', 'Social Handles', 'Professional Overview'
+            'PDF File Name', 'PDF Storage Path', 'Word Count', 'Social Handles', 'Professional Overview'
         ])
 
         # Sheet 2: Clients
@@ -306,7 +327,7 @@ def sync_1second():
         ws_clients.append([
             'Submission Id', 'Timestamp', 'Full Name', 'Email Address', 'Phone Number', 
             'Property Location', 'Offered Budget (₹)', 'Signed Status', 'Signature Name', 
-            'Word Count', 'Project Scope'
+            'PDF File Name', 'PDF Storage Path', 'Word Count', 'Project Scope'
         ])
 
         # Sheet 3: Master Log
@@ -314,7 +335,7 @@ def sync_1second():
         ws_master.append([
             'Submission Id', 'Timestamp', 'Role Type', 'Full Name', 'Email Address', 
             'Phone Number', 'Location', 'Budget Range (₹)', 'Signed Status', 'Signature Name', 
-            'Word Count', 'Project Details'
+            'PDF File Name', 'PDF Storage Path', 'Word Count', 'Project Details'
         ])
 
         # Sheet 4: Reviews & Feedback
@@ -334,15 +355,20 @@ def sync_1second():
             social = s.get("socialHandles", "")
             signed_status = s.get("signed_status", "signed")
             sig_name = s.get("signatureFullName", "")
+            clean_name = (sig_name or name or "User").replace(" ", "_")
+            ts_str = (timestamp or "").split(",")[0].strip().replace("/", "-")
+            default_pdf = f"{clean_name}_{ts_str}.pdf"
+            pdf_name = s.get("pdf_file_name") or s.get("pdfFileName") or default_pdf
+            pdf_path = s.get("pdf_path") or s.get("pdfPath") or rf"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\{pdf_name}"
             word_count = s.get("wordCount", 0)
             desc = s.get("description")
 
             if role_title == 'Designer':
-                ws_designers.append([sub_id, timestamp, name, email, phone, location, budget, signed_status, sig_name, word_count, social, desc])
+                ws_designers.append([sub_id, timestamp, name, email, phone, location, budget, signed_status, sig_name, pdf_name, pdf_path, word_count, social, desc])
             else:
-                ws_clients.append([sub_id, timestamp, name, email, phone, location, budget, signed_status, sig_name, word_count, desc])
+                ws_clients.append([sub_id, timestamp, name, email, phone, location, budget, signed_status, sig_name, pdf_name, pdf_path, word_count, desc])
 
-            ws_master.append([sub_id, timestamp, role_title, name, email, phone, location, budget, signed_status, sig_name, word_count, desc])
+            ws_master.append([sub_id, timestamp, role_title, name, email, phone, location, budget, signed_status, sig_name, pdf_name, pdf_path, word_count, desc])
 
         for r in reversed(reviews):
             ws_reviews.append([
