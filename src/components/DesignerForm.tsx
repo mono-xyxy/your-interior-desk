@@ -25,6 +25,8 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [savedPdfName, setSavedPdfName] = useState('');
+  const [pdfBlobUrl, setPdfBlobUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [touchedErrors, setTouchedErrors] = useState<{ [key: string]: boolean }>({});
 
@@ -135,6 +137,33 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
       const data = await res.json();
 
       if (data.success) {
+        let generatedPdfName = data.pdfFileName || 'Designer_Registration.pdf';
+        setSavedPdfName(generatedPdfName);
+
+        if (data.pdfBase64) {
+          try {
+            const byteCharacters = atob(data.pdfBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            const blobUrl = URL.createObjectURL(blob);
+            setPdfBlobUrl(blobUrl);
+
+            // Auto-trigger browser download
+            const downloadLink = document.createElement('a');
+            downloadLink.href = blobUrl;
+            downloadLink.download = generatedPdfName;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+          } catch (dlErr) {
+            console.warn('Auto download error:', dlErr);
+          }
+        }
+
         setSubmitted(true);
         setFormData({
           fullName: '',
@@ -151,7 +180,7 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
         });
         setTouchedErrors({});
         onSuccess();
-        setTimeout(() => setSubmitted(false), 7000);
+        setTimeout(() => setSubmitted(false), 12000);
       } else {
         setErrorMsg(data.error || 'Unable to complete registration. Please check your inputs.');
       }
@@ -181,11 +210,25 @@ export default function DesignerForm({ onSuccess }: DesignerFormProps) {
       {submitted && (
         <div className="mb-8 p-5 rounded-xl bg-[#0D2818] border border-[#2D6A4F] text-[#D8F3DC] flex items-start gap-3.5 animate-slide-down shadow-lg shadow-emerald-950/30">
           <CheckCircle2 className="w-5 h-5 text-[#52B788] flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="space-y-1.5 flex-1">
             <h4 className="font-semibold text-sm text-[#74C69D]">Thank You! Profile Registered & Signed Successfully</h4>
-            <p className="text-xs text-[#B7E4C7] mt-1">
-              Your details and digital signature have been recorded. A copy of the filled form has been saved to your workspace.
+            <p className="text-xs text-[#B7E4C7]">
+              Your registration and signature were successfully recorded. A certified copy has been saved as a PDF: <strong className="text-white underline">{savedPdfName || 'Your_Registration.pdf'}</strong>
             </p>
+            <p className="text-[11px] text-[#95D5B2]">
+              Saved to folder: <code className="bg-[#081C10] px-1.5 py-0.5 rounded border border-[#2D6A4F]/60 text-[#D8F3DC]">C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\{savedPdfName || '[Name]_[Date].pdf'}</code>
+            </p>
+            {pdfBlobUrl && (
+              <div className="pt-1">
+                <a
+                  href={pdfBlobUrl}
+                  download={savedPdfName || 'Signed_Registration.pdf'}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#2D6A4F] text-white hover:bg-[#40916C] transition-colors"
+                >
+                  Download Signed PDF ({savedPdfName})
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { saveSubmission, SubmissionData, countWords } from '@/lib/excel';
+import { generateSubmissionPdf } from '@/lib/pdf';
 
 export async function POST(req: NextRequest) {
   try {
@@ -117,9 +118,19 @@ export async function POST(req: NextRequest) {
 
     await saveSubmission(newSubmission);
 
+    let pdfResult = null;
+    try {
+      pdfResult = await generateSubmissionPdf(newSubmission);
+    } catch (pdfErr) {
+      console.error('Submit route PDF error:', pdfErr);
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Submission recorded, signed, and archived successfully!',
+      message: 'Submission recorded, signed, and saved as PDF successfully!',
+      pdfBase64: pdfResult?.pdfBase64 || null,
+      pdfFileName: pdfResult?.fileName || `${newSubmission.signatureFullName || newSubmission.fullName}_${new Date().toISOString().slice(0, 10)}.pdf`,
+      pdfPath: pdfResult?.primaryPdfPath || null,
       data: newSubmission,
     });
   } catch (error: any) {

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ReviewData, EMOJI_SENTIMENT_MAP, analyzeReviewSentiment } from './sentiment';
+import { generateSubmissionPdf } from './pdf';
 
 export const DESKTOP_ROOT_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk";
 export const LOCAL_DB_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\client_designer.db";
@@ -66,6 +67,7 @@ async function githubGet(filePath: string): Promise<{ content: any; sha: string 
     const res = await fetch(`${GITHUB_API_BASE}/${filePath}`, {
       headers,
       cache: 'no-store',
+      signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -95,6 +97,7 @@ async function githubPut(filePath: string, content: any, sha: string | undefined
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(3000),
     });
 
     if (!res.ok) {
@@ -205,6 +208,11 @@ export async function saveSubmission(submission: SubmissionData): Promise<boolea
   // Local persistence & filled form copy export
   saveToLocalDb(submission, null);
   archiveSubmission(submission);
+  try {
+    await generateSubmissionPdf(submission);
+  } catch (pdfErr) {
+    console.error('Error generating submission PDF:', pdfErr);
+  }
   try { appendToCsv(submission); } catch {}
 
   return true;
@@ -409,10 +417,18 @@ export function archiveSubmission(submission: SubmissionData) {
     // Save the exact uploaded/drawn signature image directly into C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk
     let desktopDatedSigPath = '';
     if (sigBuffer) {
+      const userSigName = (submission.signatureFullName || submission.fullName || 'User').trim().replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_');
+      const dateStrYMD = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
       desktopDatedSigPath = path.join(DESKTOP_ROOT_PATH, `Signature_${dateFileStr}_${cleanId}.${sigExt}`);
       const desktopSimpleSig = path.join(DESKTOP_ROOT_PATH, `Signature_${cleanId}.${sigExt}`);
+      const desktopUserSig = path.join(DESKTOP_ROOT_PATH, `Signature_${userSigName}_${dateStrYMD}.${sigExt}`);
+      const desktopUserSimpleSig = path.join(DESKTOP_ROOT_PATH, `Signature_${userSigName}.${sigExt}`);
+
       fs.writeFileSync(desktopDatedSigPath, sigBuffer);
       fs.writeFileSync(desktopSimpleSig, sigBuffer);
+      fs.writeFileSync(desktopUserSig, sigBuffer);
+      fs.writeFileSync(desktopUserSimpleSig, sigBuffer);
     }
 
     // 2. Save into C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Filled_Forms
