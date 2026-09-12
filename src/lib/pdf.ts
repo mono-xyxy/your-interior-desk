@@ -2,15 +2,22 @@ import fs from 'fs';
 import path from 'path';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
-// Patch UPNG in pdf-lib to use pako.inflate directly, preventing infinite loop on malformed/corrupt chunks
+// Patch UPNG in pdf-lib to use pako.inflateRaw directly, preventing infinite loop on canvas PNG chunks
 try {
   const pako = require('pako');
   const upngMod = require('@pdf-lib/upng');
-  const UPNG = upngMod?.default || upngMod;
-  if (UPNG && UPNG.decode) {
-    UPNG.decode._inflate = function (data: any) {
-      return pako.inflate(data);
-    };
+  const targets = [
+    upngMod,
+    upngMod?.default,
+    upngMod?.default?.default,
+  ].filter(Boolean);
+
+  for (const t of targets) {
+    if (t && t.decode) {
+      t.inflateRaw = function (data: any) {
+        return pako.inflateRaw(data);
+      };
+    }
   }
 } catch {}
 
