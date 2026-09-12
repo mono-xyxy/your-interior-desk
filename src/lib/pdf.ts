@@ -15,6 +15,7 @@ try {
 } catch {}
 
 export const DESKTOP_ROOT_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk";
+export const LOCAL_SUBMISSIONS_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Submissions";
 export const LOCAL_FILLED_FORMS_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Filled_Forms";
 export const LOCAL_SUBMISSIONS_ARCHIVE_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Submitted_Forms";
 
@@ -372,6 +373,8 @@ export async function generateSubmissionPdf(submission: SubmissionData): Promise
 
     // Right side: embed actual signature image if available
     let embeddedImage = false;
+    let extractedSigBuffer: Buffer | null = null;
+    let extractedSigExt = 'png';
     const sigAreaX = margin + contentWidth - 170;
     const sigAreaY = y - 72;
     const sigAreaWidth = 150;
@@ -400,6 +403,11 @@ export async function generateSubmissionPdf(submission: SubmissionData): Promise
       } else if (submission.signatureFilePath && fs.existsSync(submission.signatureFilePath)) {
         imageBytes = fs.readFileSync(submission.signatureFilePath);
         isJpg = submission.signatureFilePath.toLowerCase().endsWith('.jpg') || submission.signatureFilePath.toLowerCase().endsWith('.jpeg');
+      }
+
+      if (imageBytes) {
+        extractedSigBuffer = imageBytes;
+        extractedSigExt = isJpg ? 'jpg' : 'png';
       }
 
       if (imageBytes && imageBytes.length > 0) {
@@ -497,13 +505,36 @@ export async function generateSubmissionPdf(submission: SubmissionData): Promise
       if (!fs.existsSync(DESKTOP_ROOT_PATH)) {
         fs.mkdirSync(DESKTOP_ROOT_PATH, { recursive: true });
       }
-      if (!fs.existsSync(LOCAL_FILLED_FORMS_PATH)) {
-        fs.mkdirSync(LOCAL_FILLED_FORMS_PATH, { recursive: true });
+      // 0. Save into C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Submissions
+      if (!fs.existsSync(LOCAL_SUBMISSIONS_PATH)) {
+        fs.mkdirSync(LOCAL_SUBMISSIONS_PATH, { recursive: true });
+      }
+      const submissionsSigDir = path.join(LOCAL_SUBMISSIONS_PATH, 'Signatures');
+      if (!fs.existsSync(submissionsSigDir)) {
+        fs.mkdirSync(submissionsSigDir, { recursive: true });
       }
 
-      // 1. Primary requested PDF with user entered name and date: e.g. "Jia_2026-09-12.pdf"
-      primaryPdfPath = path.join(DESKTOP_ROOT_PATH, primaryFileName);
-      fs.writeFileSync(primaryPdfPath, pdfBytes);
+      // Primary requested PDF in Submissions directory: e.g. "Jia_2026-09-12.pdf"
+      const submissionsPdfPath = path.join(LOCAL_SUBMISSIONS_PATH, primaryFileName);
+      fs.writeFileSync(submissionsPdfPath, pdfBytes);
+      primaryPdfPath = submissionsPdfPath;
+
+      // Also Indian date format in Submissions
+      const submissionsInDatePdf = path.join(LOCAL_SUBMISSIONS_PATH, `${underScoreName}_${dateIN}.pdf`);
+      fs.writeFileSync(submissionsInDatePdf, pdfBytes);
+
+      // Exact signature saved in Submissions\Signatures
+      if (extractedSigBuffer) {
+        try {
+          fs.writeFileSync(path.join(submissionsSigDir, `${cleanId}_${underScoreName}_signature.${extractedSigExt}`), extractedSigBuffer);
+          fs.writeFileSync(path.join(submissionsSigDir, `Signature_${cleanId}.${extractedSigExt}`), extractedSigBuffer);
+          fs.writeFileSync(path.join(submissionsSigDir, `Signature_${underScoreName}.${extractedSigExt}`), extractedSigBuffer);
+        } catch {}
+      }
+
+      // 1. Also mirror to Desktop Root Path: C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk
+      const desktopPdfPath = path.join(DESKTOP_ROOT_PATH, primaryFileName);
+      fs.writeFileSync(desktopPdfPath, pdfBytes);
 
       // 2. Also save Indian date format e.g. "Jia_12-09-2026.pdf"
       const inDatePdfPath = path.join(DESKTOP_ROOT_PATH, `${underScoreName}_${dateIN}.pdf`);
@@ -533,8 +564,8 @@ export async function generateSubmissionPdf(submission: SubmissionData): Promise
       fs.writeFileSync(path.join(archiveDir, `${underScoreName}_${dateISO}.pdf`), pdfBytes);
 
       console.log(`[PDF Success] Generated and saved PDF copies to:
-- Primary PDF: ${primaryPdfPath}
-- IN Date PDF: ${inDatePdfPath}
+- Submissions PDF: ${submissionsPdfPath}
+- Desktop Root PDF: ${desktopPdfPath}
 - Archive PDF: ${filledDirPdfPath}`);
     } catch (fsErr) {
       console.log('[PDF Notice] Local filesystem write bypassed (e.g. running on cloud server):', fsErr);

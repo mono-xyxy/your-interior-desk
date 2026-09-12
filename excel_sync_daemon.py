@@ -5,30 +5,44 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import os
 import csv
+import json
+import subprocess
 
-DB_PATH = r"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\client_designer.db"
-EXCEL_PATH = r"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\Client_Designer.xlsx"
-CSV_PATH = r"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\Client_Designer_DB\Client_Designer.csv"
+DESKTOP_ROOT = r"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk"
+SUBMISSIONS_DIR = os.path.join(DESKTOP_ROOT, "Submissions")
+SIGNATURES_DIR = os.path.join(SUBMISSIONS_DIR, "Signatures")
+DB_PATH = os.path.join(DESKTOP_ROOT, "Client_Designer_DB", "client_designer.db")
+EXCEL_PATH = os.path.join(DESKTOP_ROOT, "Client_Designer_DB", "Client_Designer.xlsx")
+ROOT_EXCEL_PATH = os.path.join(DESKTOP_ROOT, "Client_Designer.xlsx")
+CSV_PATH = os.path.join(DESKTOP_ROOT, "Client_Designer_DB", "Client_Designer.csv")
 
-# Cloud Vercel Endpoints or Local Server Endpoints
+# Ensure all target folders exist
+for d in [DESKTOP_ROOT, SUBMISSIONS_DIR, SIGNATURES_DIR, os.path.dirname(DB_PATH)]:
+    os.makedirs(d, exist_ok=True)
+
+# Cloud Vercel Endpoints & Local Endpoints
 VERCEL_API = os.environ.get("VERCEL_API_URL", "https://your-interior-desk.vercel.app/api/submissions")
 VERCEL_REVIEWS_API = os.environ.get("VERCEL_REVIEWS_API_URL", "https://your-interior-desk.vercel.app/api/reviews")
 GITHUB_SUBS_API = "https://raw.githubusercontent.com/mono-xyxy/your-interior-desk/main/data/submissions.json"
 LOCAL_API = "http://localhost:3000/api/submissions"
 LOCAL_REVIEWS_API = "http://localhost:3000/api/reviews"
 
-# Excel Beautification Styles (Steel Navy Header & Clean Typography)
+# ─── Excel Beautification Styles (Steel Navy Premium Design) ─────────────────────
 header_fill = PatternFill(start_color='101B2E', end_color='101B2E', fill_type='solid')
 header_font = Font(name='Calibri', size=11, bold=True, color='F8FAFC')
 
 row_fill_even = PatternFill(start_color='FFFFFF', end_color='FFFFFF', fill_type='solid')
 row_fill_odd = PatternFill(start_color='F8FAFC', end_color='F8FAFC', fill_type='solid')
 
+# Signed Status Highlight (Emerald Green Pill Style)
+signed_fill = PatternFill(start_color='E8F5E9', end_color='E8F5E9', fill_type='solid')
+signed_font = Font(name='Calibri', size=11, bold=True, color='1B5E20')
+
 thin_border = Border(
-    left=Side(style='thin', color='E2E8F0'),
-    right=Side(style='thin', color='E2E8F0'),
-    top=Side(style='thin', color='E2E8F0'),
-    bottom=Side(style='thin', color='E2E8F0')
+    left=Side(style='thin', color='CBD5E1'),
+    right=Side(style='thin', color='CBD5E1'),
+    top=Side(style='thin', color='CBD5E1'),
+    bottom=Side(style='thin', color='CBD5E1')
 )
 
 align_center = Alignment(horizontal='center', vertical='center')
@@ -43,15 +57,16 @@ def auto_fit_columns(ws):
             val = str(cell.value or '')
             if len(val) > max_len:
                 max_len = len(val)
-        ws.column_dimensions[col_letter].width = min(max(max_len + 6, 20), 70)
+        ws.column_dimensions[col_letter].width = min(max(max_len + 5, 16), 65)
 
 def apply_beautification(ws):
-    ws.row_dimensions[1].height = 26
+    ws.row_dimensions[1].height = 28
     for cell in ws[1]:
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = align_center
 
+    max_cols = ws.max_column
     for row_idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
         fill = row_fill_even if row_idx % 2 == 0 else row_fill_odd
         ws.row_dimensions[row_idx].height = 24
@@ -59,10 +74,15 @@ def apply_beautification(ws):
             cell.fill = fill
             cell.border = thin_border
             cell.font = Font(name='Calibri', size=11, color='0F172A')
-            
-            if cell.column in [1, 2, 3, 5, 6, 7, 8, 10, 11]:
+
+            # Highlight Signed Status
+            if str(cell.value or '').lower() in ['signed', '✓ signed']:
+                cell.fill = signed_fill
+                cell.font = signed_font
                 cell.alignment = align_center
-            elif cell.column in [12]:
+            elif cell.column in [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12]:
+                cell.alignment = align_center
+            elif cell.column in [max_cols]:
                 cell.alignment = align_wrap
             else:
                 cell.alignment = align_left
@@ -73,13 +93,10 @@ def fetch_cloud_submissions():
     merged = {}
     for endpoint in [VERCEL_API, GITHUB_SUBS_API, LOCAL_API]:
         try:
-            res = requests.get(endpoint, timeout=3)
+            res = requests.get(endpoint, timeout=4)
             if res.status_code == 200:
                 data = res.json()
-                if isinstance(data, list):
-                    items = data
-                else:
-                    items = data.get("submissions", [])
+                items = data if isinstance(data, list) else data.get("submissions", [])
                 for item in items:
                     if isinstance(item, dict) and item.get("id"):
                         merged[item["id"]] = item
@@ -91,19 +108,40 @@ def fetch_cloud_reviews():
     merged = {}
     for endpoint in [VERCEL_REVIEWS_API, LOCAL_REVIEWS_API]:
         try:
-            res = requests.get(endpoint, timeout=3)
+            res = requests.get(endpoint, timeout=4)
             if res.status_code == 200:
                 data = res.json()
-                if isinstance(data, list):
-                    items = data
-                else:
-                    items = data.get("reviews", [])
+                items = data if isinstance(data, list) else data.get("reviews", [])
                 for item in items:
                     if isinstance(item, dict) and item.get("id"):
                         merged[item["id"]] = item
         except Exception:
             pass
     return list(merged.values())
+
+def generate_missing_pdfs(subs):
+    """Generates signed PDFs in Submissions directory for any cloud submissions that don't have local PDFs"""
+    missing = []
+    for s in subs:
+        clean_name = (s.get("signatureFullName") or s.get("fullName") or "User").replace(" ", "_")
+        pdf_name = s.get("pdfFileName") or s.get("pdf_file_name") or f"{clean_name}_2026-09-12.pdf"
+        target_pdf = os.path.join(SUBMISSIONS_DIR, pdf_name)
+        if not os.path.exists(target_pdf):
+            missing.append(s)
+
+    if missing:
+        helper_path = os.path.join(os.path.dirname(__file__), "sync_pdf_helper.mjs")
+        temp_json = os.path.join(os.path.dirname(__file__), "temp_missing.json")
+        try:
+            with open(temp_json, "w", encoding="utf-8") as f:
+                json.dump(missing, f)
+            subprocess.run(["node", helper_path, temp_json], capture_output=True, timeout=30)
+        except Exception as e:
+            print("PDF generation helper notice:", e)
+        finally:
+            if os.path.exists(temp_json):
+                try: os.remove(temp_json)
+                except: pass
 
 def get_all_db_submissions():
     if os.path.exists(DB_PATH):
@@ -152,8 +190,6 @@ def get_all_db_reviews():
     return []
 
 def save_to_sqlite(subs, reviews):
-    if not os.path.exists(os.path.dirname(DB_PATH)):
-        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     try:
         conn = sqlite3.connect(DB_PATH, timeout=10.0)
         c = conn.cursor()
@@ -176,6 +212,8 @@ def save_to_sqlite(subs, reviews):
                 signatureFileName TEXT,
                 signatureFilePath TEXT,
                 termsAccepted INTEGER DEFAULT 1,
+                pdf_file_name TEXT,
+                pdf_path TEXT,
                 synced_to_excel INTEGER DEFAULT 0
             )
         """)
@@ -194,20 +232,6 @@ def save_to_sqlite(subs, reviews):
                 wordCount INTEGER
             )
         """)
-        for col_def in [
-            "ALTER TABLE submissions ADD COLUMN socialHandles TEXT",
-            "ALTER TABLE submissions ADD COLUMN signed_status TEXT DEFAULT 'signed'",
-            "ALTER TABLE submissions ADD COLUMN signatureFullName TEXT",
-            "ALTER TABLE submissions ADD COLUMN signatureFileName TEXT",
-            "ALTER TABLE submissions ADD COLUMN signatureFilePath TEXT",
-            "ALTER TABLE submissions ADD COLUMN termsAccepted INTEGER DEFAULT 1",
-            "ALTER TABLE submissions ADD COLUMN pdf_file_name TEXT",
-            "ALTER TABLE submissions ADD COLUMN pdf_path TEXT"
-        ]:
-            try:
-                c.execute(col_def)
-            except Exception:
-                pass
 
         for s in subs:
             role_str = "Designer" if s.get("role", "").lower() == "designer" else "Client"
@@ -215,7 +239,7 @@ def save_to_sqlite(subs, reviews):
             ts_str = (s.get("timestamp") or "").split(",")[0].strip().replace("/", "-")
             default_pdf = f"{clean_name}_{ts_str}.pdf"
             pdf_name = s.get("pdfFileName") or s.get("pdf_file_name") or default_pdf
-            pdf_path = s.get("pdfPath") or s.get("pdf_path") or rf"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\{pdf_name}"
+            pdf_path = os.path.join(SUBMISSIONS_DIR, pdf_name)
 
             c.execute("""
                 INSERT OR REPLACE INTO submissions 
@@ -244,29 +268,30 @@ def save_to_sqlite(subs, reviews):
 
         conn.commit()
         conn.close()
-    except Exception:
-        pass
+    except Exception as err:
+        print("save_to_sqlite error:", err)
 
 def sync_1second():
     # 1. Fetch Cloud API & GitHub submissions & reviews
     cloud_subs = fetch_cloud_submissions()
     cloud_revs = fetch_cloud_reviews()
 
-    # 2. Save Cloud items into local SQLite DB
+    # 2. Auto-generate signed PDFs in Submissions directory for any cloud submissions
+    if cloud_subs:
+        generate_missing_pdfs(cloud_subs)
+
+    # 3. Save Cloud items into local SQLite DB
     if cloud_subs or cloud_revs:
         save_to_sqlite(cloud_subs, cloud_revs)
 
-    # 3. Read ALL cumulative records from SQLite DB
+    # 4. Read ALL cumulative records from SQLite DB
     subs = get_all_db_submissions()
     reviews = get_all_db_reviews()
 
     if not subs and not reviews:
         return
 
-    dir_path = os.path.dirname(EXCEL_PATH)
-    os.makedirs(dir_path, exist_ok=True)
-
-    # 4. Update CSV Log Files with ALL cumulative records
+    # 5. Update CSV Log Files
     try:
         with open(CSV_PATH, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
@@ -282,7 +307,7 @@ def sync_1second():
                 ts_str = (s.get("timestamp") or "").split(",")[0].strip().replace("/", "-")
                 default_pdf = f"{clean_name}_{ts_str}.pdf"
                 pdf_name = s.get("pdf_file_name") or s.get("pdfFileName") or default_pdf
-                pdf_path = s.get("pdf_path") or s.get("pdfPath") or rf"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\{pdf_name}"
+                pdf_path = os.path.join(SUBMISSIONS_DIR, pdf_name)
 
                 writer.writerow([
                     s.get("id"), s.get("timestamp"), role_title,
@@ -295,21 +320,7 @@ def sync_1second():
     except Exception:
         pass
 
-    try:
-        reviews_csv = os.path.join(dir_path, "Client_Designer_Reviews.csv")
-        with open(reviews_csv, mode='w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['Review Id', 'Timestamp', 'Author Name', 'Email Address', 'Role', 'Sentiment Keyword', 'Emoji', 'Rating Score', 'Matched Keywords', 'Word Count', 'Review Text'])
-            for r in reversed(reviews):
-                writer.writerow([
-                    r.get("id"), r.get("timestamp"), r.get("name"), r.get("email"),
-                    r.get("role"), r.get("ratingKeyword"), r.get("emoji"),
-                    r.get("ratingScore"), r.get("matchedKeywords"), r.get("wordCount"), r.get("reviewText")
-                ])
-    except Exception:
-        pass
-
-    # 5. Update Excel Workbook (.xlsx) with ALL cumulative records
+    # 6. Update Excel Workbook (.xlsx) with BEAUTIFIED STYLING
     try:
         wb = openpyxl.Workbook()
 
@@ -359,7 +370,7 @@ def sync_1second():
             ts_str = (timestamp or "").split(",")[0].strip().replace("/", "-")
             default_pdf = f"{clean_name}_{ts_str}.pdf"
             pdf_name = s.get("pdf_file_name") or s.get("pdfFileName") or default_pdf
-            pdf_path = s.get("pdf_path") or s.get("pdfPath") or rf"C:\Users\rohan\OneDrive\Desktop\YourInteriorDesk\{pdf_name}"
+            pdf_path = os.path.join(SUBMISSIONS_DIR, pdf_name)
             word_count = s.get("wordCount", 0)
             desc = s.get("description")
 
@@ -382,23 +393,31 @@ def sync_1second():
         apply_beautification(ws_master)
         apply_beautification(ws_reviews)
 
-        wb.save(EXCEL_PATH)
-        print(f"[OK 1s Auto-Sync] Synced ALL {len(subs)} Cumulative Submissions with Signed Status into Excel & SQLite DB.")
+        # Save to both target locations
+        for out_path in [EXCEL_PATH, ROOT_EXCEL_PATH]:
+            try:
+                wb.save(out_path)
+            except PermissionError:
+                fallback = out_path.replace('.xlsx', '_Latest.xlsx')
+                try: wb.save(fallback)
+                except: pass
+
+        print(f"[OK Real-Time Sync] Synced {len(subs)} submissions & {len(reviews)} reviews with Beautified Excel styling.")
 
     except PermissionError:
-        print(f"[Notice] Excel file is open in Microsoft Excel. Saved to SQLite & CSV. Auto-updating Excel when closed...")
+        print("[Notice] Excel file is currently open in Microsoft Excel. Saved to SQLite & CSV. Will update Excel when closed.")
+    except Exception as e:
+        print("Excel save error:", e)
 
 if __name__ == "__main__":
     print("=" * 65)
-    print("  YOUR INTERIOR DESK - 1-SECOND REAL-TIME EXCEL AUTO-SYNC DAEMON")
-    print("  Vercel Submissions API:", VERCEL_API)
-    print("  Vercel Reviews API:    ", VERCEL_REVIEWS_API)
-    print("  Target SQLite DB:      ", DB_PATH)
-    print("  Target Excel:          ", EXCEL_PATH)
-    print("  Interval:               EVERY 1 SECOND")
+    print("  YOUR INTERIOR DESK - REAL-TIME EXCEL BEAUTIFIER & PDF AUTO-SYNC")
+    print("  Submissions PDF Directory: ", SUBMISSIONS_DIR)
+    print("  Target Excel File:          ", EXCEL_PATH)
+    print("  Target SQLite DB:           ", DB_PATH)
     print("=" * 65)
-    print("[*] Running 1-second real-time sync loop... Press Ctrl+C to stop.\n")
+    print("[*] Running continuous sync loop... Press Ctrl+C to stop.\n")
 
     while True:
         sync_1second()
-        time.sleep(1)
+        time.sleep(2)

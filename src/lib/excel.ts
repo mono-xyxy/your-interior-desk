@@ -4,6 +4,7 @@ import { ReviewData, EMOJI_SENTIMENT_MAP, analyzeReviewSentiment } from './senti
 import { generateSubmissionPdf } from './pdf';
 
 export const DESKTOP_ROOT_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk";
+export const LOCAL_SUBMISSIONS_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Submissions";
 export const LOCAL_DB_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\client_designer.db";
 export const LOCAL_EXCEL_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\Client_Designer.xlsx";
 export const LOCAL_CSV_PATH = "C:\\Users\\rohan\\OneDrive\\Desktop\\YourInteriorDesk\\Client_Designer_DB\\Client_Designer.csv";
@@ -220,9 +221,11 @@ export async function saveSubmission(submission: SubmissionData): Promise<boolea
 
   // 2. Local database & Excel/CSV persistence with PDF storage details
   saveToLocalDb(submission, null);
-  archiveSubmission(submission);
   try { appendToCsv(submission); } catch {}
-  try { updateLocalExcelWorkbook(all); } catch {}
+  try {
+    const { exec } = require('child_process');
+    exec('py -c "import excel_sync_daemon; excel_sync_daemon.sync_1second()"');
+  } catch {}
 
   return true;
 }
