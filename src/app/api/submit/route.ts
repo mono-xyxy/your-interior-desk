@@ -27,19 +27,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const descriptionText = body.description.trim();
+    const descriptionText = (body.description || '').trim() || 'Direct Inquiry via Landing Page';
     const wordCount = countWords(descriptionText);
-
-    const minWords = body.role === 'designer' ? 80 : 15;
-    if (wordCount < minWords) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Minimum ${minWords} words required for project details. You currently provided ${wordCount} words (${minWords - wordCount} more words needed).`,
-        },
-        { status: 400 }
-      );
-    }
+    const initialCommitment = (body.initialCommitment || body.tokenAmount || '').toString().trim();
 
     const id = 'YID-' + Math.random().toString(36).substring(2, 9).toUpperCase();
 
@@ -82,6 +72,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const budgetFormatted = initialCommitment 
+      ? `${body.budget.trim()} (Initial Token: ₹${initialCommitment})` 
+      : body.budget.trim();
+
+    const fullDescription = initialCommitment
+      ? `${descriptionText} | [Initial Commitment Token: ₹${initialCommitment}]`
+      : descriptionText;
+
     const newSubmission: SubmissionData = {
       id,
       timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
@@ -90,9 +88,9 @@ export async function POST(req: NextRequest) {
       email: body.email.trim(),
       phone: body.phone.trim(),
       location: body.location.trim(),
-      budget: body.budget.trim(),
+      budget: budgetFormatted,
       socialHandles: body.socialHandles ? body.socialHandles.trim() : '',
-      description: descriptionText,
+      description: fullDescription,
       wordCount: wordCount,
       signatureFullName: body.signatureFullName ? body.signatureFullName.trim() : body.fullName.trim(),
       signatureFileName: body.signatureFileName || (signatureBuffer ? `signature.${extension}` : ''),

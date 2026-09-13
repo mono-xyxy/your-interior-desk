@@ -2,45 +2,56 @@
 
 import React, { useState } from 'react';
 import ArchitecturalBackground from '@/components/ArchitecturalBackground';
-import Header from '@/components/Header';
-import RoleSelector, { TabType } from '@/components/RoleSelector';
-import DesignerForm from '@/components/DesignerForm';
-import ClientForm from '@/components/ClientForm';
-import ReviewForm from '@/components/ReviewForm';
+import Navbar from '@/components/Navbar';
+import HeroSection from '@/components/HeroSection';
+import WhatWeDo from '@/components/WhatWeDo';
+import BenefitsSection from '@/components/BenefitsSection';
+import PricingSection from '@/components/PricingSection';
+import AboutSection from '@/components/AboutSection';
+import HowItWorks from '@/components/HowItWorks';
+import ReachOutSection from '@/components/ReachOutSection';
+import QuickInquiryForm from '@/components/QuickInquiryForm';
+import FooterSection from '@/components/FooterSection';
 
 export default function Home() {
-  const [activeRole, setActiveRole] = useState<TabType>('designer');
+  const [selectedRole, setSelectedRole] = useState<'client' | 'designer'>('client');
 
   return (
-    <div className="min-h-screen relative flex flex-col justify-between selection:bg-[#E2E8F0] selection:text-[#0B1422]">
-      {/* Background visual art */}
+    <div className="min-h-screen relative flex flex-col justify-between selection:bg-[#CBD5E1] selection:text-[#0B1320] bg-[#0B1320] text-[#F8FAFC]">
+      {/* Background Architectural Wireframe Grids */}
       <ArchitecturalBackground />
 
-      <main className="relative z-10 pb-16">
-        {/* Minimal Emblem Header */}
-        <Header />
+      {/* Sticky Executive Navigation */}
+      <Navbar />
 
-        {/* Role Switcher Tabs */}
-        <RoleSelector
-          activeRole={activeRole}
-          onChangeRole={(role) => setActiveRole(role)}
-        />
+      <main className="relative z-10 flex-1">
+        {/* Hero Section with Value Badges & Dual CTAs */}
+        <HeroSection onSelectRole={(role) => setSelectedRole(role)} />
 
-        {/* Dynamic Vertical Row-by-Row Form Area */}
-        <section className="max-w-2xl mx-auto px-4 my-4">
-          {activeRole === 'designer' && <DesignerForm onSuccess={() => {}} />}
-          {activeRole === 'client' && <ClientForm onSuccess={() => {}} />}
-          {activeRole === 'review' && <ReviewForm onSuccess={() => {}} />}
-        </section>
+        {/* What We Do: The Curation Desk Philosophy */}
+        <WhatWeDo />
+
+        {/* How This Helps Both Clients and Designers */}
+        <BenefitsSection />
+
+        {/* Pricing & The 3% Commission Model + Interactive Calculator */}
+        <PricingSection />
+
+        {/* About Me & Founder Curation Story */}
+        <AboutSection />
+
+        {/* How It Works: 4-Step Process Flow */}
+        <HowItWorks />
+
+        {/* Official Channels & Reach Out Section */}
+        <ReachOutSection />
+
+        {/* Streamlined Quick Inquiry Form */}
+        <QuickInquiryForm initialRole={selectedRole} />
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 py-6 border-t border-[#E2E8F0]/15 text-center text-xs text-[#94A3B8] bg-[#0B1422]/95 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto px-4 flex items-center justify-center">
-          <p>© {new Date().getFullYear()} Your Interior Desk. All rights reserved.</p>
-        </div>
-      </footer>
+      {/* Luxury Footer */}
+      <FooterSection />
     </div>
   );
 }
-
